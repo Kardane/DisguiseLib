@@ -52,16 +52,9 @@ public abstract class ServerCommonNetworkHandlerMixin_Disguiser {
      *
      * @param packet packet being sent
      */
-    @Inject(
-            method = "send",
-            at = @At(
-                    value = "INVOKE",
-                    target = "Lnet/minecraft/network/ClientConnection;send(Lnet/minecraft/network/packet/Packet;Lnet/minecraft/network/PacketCallbacks;Z)V"
-            ),
-            cancellable = true
-    )
+    @Inject(method = "send", at = @At(value = "INVOKE",target = "Lnet/minecraft/network/ClientConnection;send(Lnet/minecraft/network/packet/Packet;Lnet/minecraft/network/PacketCallbacks;Z)V"), cancellable = true)
     private void disguiseEntity(Packet<ClientPlayPacketListener> packet, PacketCallbacks callbacks, CallbackInfo ci) {
-        if (!this.disguiselib$skipCheck) {
+        if (!this.disguiselib$skipCheck) {//확인안했으면 진행
             if (!(this instanceof ExtendedHandler self)) {
                 return;
             }
