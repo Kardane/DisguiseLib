@@ -31,3 +31,10 @@ bin/
 # fabric
 
 run/
+
+#antigravity
+.agent/
+build_log/
+보고서/
+@보고서/
+@build_log/

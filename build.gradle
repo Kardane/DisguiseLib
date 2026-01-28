@@ -1,7 +1,7 @@
 plugins {
 	id "java"
 	id "maven-publish"
-	id 'fabric-loom' version '1.11.+'
+	id 'fabric-loom' version '1.13.+'
 }
 apply plugin: 'fabric-loom'
 
@@ -16,6 +16,8 @@ repositories {
 	maven {
 		url 'https://jitpack.io'
 	}
+	maven { url 'https://oss.sonatype.org/content/repositories/snapshots' }
+	maven { url 'https://maven.nucleoid.xyz' }
 }
 
 tasks.withType(JavaCompile).configureEach {
@@ -49,7 +51,9 @@ repositories {
 	dependencies {
 		modImplementation "net.fabricmc:fabric-loader:${rootProject.loader_version}"
 		modApi "net.fabricmc.fabric-api:fabric-api:${rootProject.fabric_version}"
+		modImplementation include("me.lucko:fabric-permissions-api:0.6.0-patbox")
 
 		minecraft "com.mojang:minecraft:${rootProject.minecraft_version}"
 		mappings("net.fabricmc:yarn:${rootProject.yarn_mappings}:v2")
 	}
+

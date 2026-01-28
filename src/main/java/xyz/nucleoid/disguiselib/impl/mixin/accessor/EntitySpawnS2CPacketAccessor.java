@@ -10,40 +10,49 @@ import java.util.UUID;
 
 @Mixin(EntitySpawnS2CPacket.class)
 public interface EntitySpawnS2CPacketAccessor {
-    @Mutable
-    @Accessor("entityType")
-    void setEntityType(EntityType<?> entityType);
-    @Mutable
-    @Accessor("entityData")
-    void setEntityData(int entityData);
+	@Mutable
+	@Accessor("entityType")
+	void setEntityType(EntityType<?> entityType);
 
-    @Accessor("entityId")
-    int getEntityId();
+	@Mutable
+	@Accessor("entityData")
+	void setEntityData(int entityData);
 
-    @Mutable
-    @Accessor("entityId")
-    void setEntityId(int id);
+	@Accessor("entityId")
+	int getEntityId();
 
-    @Mutable
-    @Accessor("uuid")
-    void setUuid(UUID uuid);
+	@Accessor("uuid")
+	UUID getUuid();
 
-    @Mutable
-    @Accessor("x")
-    void setX(double x);
-    @Mutable
-    @Accessor("y")
-    void setY(double y);
-    @Mutable
-    @Accessor("z")
-    void setZ(double z);
-    @Mutable
-    @Accessor("yaw")
-    void setYaw(byte yaw);
-    @Mutable
-    @Accessor("pitch")
-    void setPitch(byte pitch);
-    @Mutable
-    @Accessor("headYaw")
-    void setHeadYaw(byte headYaw);
+	@Mutable
+	@Accessor("entityId")
+	void setEntityId(int id);
+
+	@Mutable
+	@Accessor("uuid")
+	void setUuid(UUID uuid);
+
+	@Mutable
+	@Accessor("x")
+	void setX(double x);
+
+	@Mutable
+	@Accessor("y")
+	void setY(double y);
+
+	@Mutable
+	@Accessor("z")
+	void setZ(double z);
+
+	@Mutable
+	@Accessor("yaw")
+	void setYaw(byte yaw);
+
+	@Mutable
+	@Accessor("pitch")
+	void setPitch(byte pitch);
+
+	@Mutable
+	@Accessor("headYaw")
+	void setHeadYaw(byte headYaw);
 }
