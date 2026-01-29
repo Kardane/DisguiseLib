@@ -5,6 +5,7 @@ import net.minecraft.entity.*;
 import net.minecraft.entity.data.DataTracker;
 import net.minecraft.entity.mob.MobEntity;
 import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.entity.player.PlayerPosition;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.network.packet.s2c.play.*;
@@ -16,9 +17,8 @@ import net.minecraft.server.world.ServerChunkManager;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.storage.ReadView;
 import net.minecraft.storage.WriteView;
-import net.minecraft.text.MutableText;
 import net.minecraft.text.Text;
-import net.minecraft.util.Formatting;
+
 import net.minecraft.util.Identifier;
 import net.minecraft.world.World;
 import org.jetbrains.annotations.Nullable;
@@ -51,8 +51,7 @@ public abstract class EntityMixin_Disguise implements EntityDisguise, DisguiseUt
 	protected UUID uuid;
 	@Unique
 	private Entity disguiselib$disguiseEntity;
-	@Unique
-	private int disguiselib$ticks;
+
 	@Unique
 	private EntityType<?> disguiselib$disguiseType;
 	@Unique
@@ -319,7 +318,7 @@ public abstract class EntityMixin_Disguise implements EntityDisguise, DisguiseUt
 		}
 
 		player.networkHandler.sendPacket(new EntitiesDestroyS2CPacket(this.disguiselib$disguiseEntity.getId()));
-		TeamS2CPacket removeTeamPacket = TeamS2CPacket.changePlayerTeam(DISGUISE_TEAM, player.getGameProfile().name(),
+		TeamS2CPacket removeTeamPacket = TeamS2CPacket.changePlayerTeam(DISGUISE_TEAM, player.getName().getString(),
 				TeamS2CPacket.Operation.REMOVE);
 		player.networkHandler.sendPacket(removeTeamPacket);
 	}
@@ -385,20 +384,13 @@ public abstract class EntityMixin_Disguise implements EntityDisguise, DisguiseUt
 			this.world.getServer().getPlayerManager().sendToDimension(
 					new EntityPositionS2CPacket(
 							this.disguiselib$entity.getId(),
-							new EntityPosition(
+							new PlayerPosition(
 									this.disguiselib$entity.getSyncedPos(),
 									this.disguiselib$entity.getVelocity(),
 									this.disguiselib$entity.getYaw(),
 									this.disguiselib$entity.getPitch()),
 							Set.of(), this.onGround),
 					this.world.getRegistryKey());
-		} else if (this.disguiselib$entity instanceof ServerPlayerEntity && ++this.disguiselib$ticks % 40 == 0) {
-			// MutableText msg = Text.literal("You are disguised as ")
-			// .append(Text.translatable(this.disguiselib$disguiseEntity.getType().getTranslationKey()))
-			// .formatted(Formatting.GREEN);
-
-			// ((ServerPlayerEntity) this.disguiselib$entity).sendMessage(msg, true);
-			this.disguiselib$ticks = 0;
 		}
 	}
 

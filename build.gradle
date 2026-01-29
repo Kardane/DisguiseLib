@@ -51,7 +51,7 @@ repositories {
 	dependencies {
 		modImplementation "net.fabricmc:fabric-loader:${rootProject.loader_version}"
 		modApi "net.fabricmc.fabric-api:fabric-api:${rootProject.fabric_version}"
-		modImplementation include("me.lucko:fabric-permissions-api:0.6.0-patbox")
+		modImplementation include("me.lucko:fabric-permissions-api:0.4.0")
 
 		minecraft "com.mojang:minecraft:${rootProject.minecraft_version}"
 		mappings("net.fabricmc:yarn:${rootProject.yarn_mappings}:v2")

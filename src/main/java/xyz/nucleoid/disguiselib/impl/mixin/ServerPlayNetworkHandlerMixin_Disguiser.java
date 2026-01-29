@@ -5,7 +5,7 @@ import net.minecraft.entity.data.DataTracker;
 import net.minecraft.network.ClientConnection;
 import net.minecraft.network.listener.ClientPlayPacketListener;
 import net.minecraft.network.packet.Packet;
-import net.minecraft.network.packet.c2s.play.PlayerMoveC2SPacket;
+
 import net.minecraft.network.packet.s2c.play.*;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.*;
@@ -14,9 +14,7 @@ import net.minecraft.world.World;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
-import org.spongepowered.asm.mixin.injection.At;
-import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+
 import xyz.nucleoid.disguiselib.api.DisguiseUtils;
 import xyz.nucleoid.disguiselib.api.EntityDisguise;
 import xyz.nucleoid.disguiselib.impl.DisguiseTracker;
@@ -26,7 +24,6 @@ import xyz.nucleoid.disguiselib.impl.packets.FakePackets;
 
 import java.util.*;
 import java.util.function.Consumer;
-import java.util.function.Predicate;
 
 import static xyz.nucleoid.disguiselib.impl.DisguiseLib.DISGUISE_TEAM;
 
@@ -49,7 +46,7 @@ public abstract class ServerPlayNetworkHandlerMixin_Disguiser extends ServerComm
 		long startTime = System.nanoTime();
 
 		try {
-			World world = this.player.getEntityWorld();
+			World world = ((EntityAccessor) this.player).getWorld();
 			if (packet instanceof EntitySpawnS2CPacket) {
 				int entityId = ((EntitySpawnS2CPacketAccessor) packet).getEntityId();
 
@@ -107,7 +104,6 @@ public abstract class ServerPlayNetworkHandlerMixin_Disguiser extends ServerComm
 						.getTrackedValues();
 				boolean hasSharedFlags = false;
 
-				// DEBUG: Print tracked values (Removed)
 				if (trackedValues != null) {
 					for (DataTracker.SerializedEntry<?> entry : trackedValues) {
 						if (entry.id() == 0) {
@@ -226,20 +222,9 @@ public abstract class ServerPlayNetworkHandlerMixin_Disguiser extends ServerComm
 
 		try {
 			Packet<?> spawnPacket;
-			var entry = new EntityTrackerEntry((ServerWorld) entity.getEntityWorld(), entity, 1, true,
-					new EntityTrackerEntry.TrackerPacketSender() {
-						@Override
-						public void sendToListeners(Packet<? super ClientPlayPacketListener> packet) {
-						}
-
-						@Override
-						public void sendToSelfAndListeners(Packet<? super ClientPlayPacketListener> packet) {
-						}
-
-						@Override
-						public void sendToListenersIf(Packet<? super ClientPlayPacketListener> packet,
-								Predicate<ServerPlayerEntity> predicate) {
-						}
+			var entry = new EntityTrackerEntry((ServerWorld) ((EntityAccessor) entity).getWorld(), entity, 1, true,
+					packet -> {
+					}, (player, packet) -> {
 					});
 
 			spawnPacket = FakePackets.universalSpawnPacket(entity, entry, true);
@@ -260,12 +245,6 @@ public abstract class ServerPlayNetworkHandlerMixin_Disguiser extends ServerComm
 		}
 	}
 
-	@Inject(method = "onPlayerMove(Lnet/minecraft/network/packet/c2s/play/PlayerMoveC2SPacket;)V", at = @At(value = "INVOKE", target = "Lnet/minecraft/network/NetworkThreadUtils;forceMainThread(Lnet/minecraft/network/packet/Packet;Lnet/minecraft/network/listener/PacketListener;Lnet/minecraft/server/world/ServerWorld;)V", shift = At.Shift.AFTER))
-	private void disguiselib$moveDisguiseEntity(PlayerMoveC2SPacket packet, CallbackInfo ci) {
-		// 자기 자신에게는 변장 엔티티 위치 업데이트를 보내지 않음
-		// 다른 플레이어들에게만 전송됨
-	}
-
 	public void disguiselib$onClientBrand() {
 		if (!this.disguiselib$sentTeamPacket) {
 			TeamS2CPacket addTeamPacket = TeamS2CPacket.updateTeam(DISGUISE_TEAM, true);
@@ -274,7 +253,7 @@ public abstract class ServerPlayNetworkHandlerMixin_Disguiser extends ServerComm
 
 			if (((EntityDisguise) this.player).isDisguised()) {
 				TeamS2CPacket joinTeamPacket = TeamS2CPacket.changePlayerTeam(DISGUISE_TEAM,
-						this.player.getGameProfile().name(), TeamS2CPacket.Operation.ADD);
+						this.player.getName().getString(), TeamS2CPacket.Operation.ADD);
 				this.sendPacket(joinTeamPacket);
 			}
 		}
