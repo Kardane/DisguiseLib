@@ -10,10 +10,13 @@ import java.util.List;
 
 @Mixin(EntityTrackerUpdateS2CPacket.class)
 public interface EntityTrackerUpdateS2CPacketAccessor {
-    @Accessor("id")
-    int getEntityId();
+	@Accessor("id")
+	int getEntityId();
 
-    @Mutable
-    @Accessor("trackedValues")
-    void setTrackedValues(List<DataTracker.SerializedEntry<?>> trackedValues);
+	@Mutable
+	@Accessor("trackedValues")
+	void setTrackedValues(List<DataTracker.SerializedEntry<?>> trackedValues);
+
+	@Accessor("trackedValues")
+	List<DataTracker.SerializedEntry<?>> getTrackedValues();
 }

@@ -1,9 +1,7 @@
 package xyz.nucleoid.disguiselib.impl.mixin;
 
 import net.minecraft.entity.Entity;
-import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.data.DataTracker;
-import net.minecraft.entity.EntityPosition;
 import net.minecraft.network.ClientConnection;
 import net.minecraft.network.listener.ClientPlayPacketListener;
 import net.minecraft.network.packet.Packet;
@@ -12,8 +10,6 @@ import net.minecraft.network.packet.s2c.play.*;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.*;
 import net.minecraft.server.world.ServerWorld;
-import net.minecraft.sound.SoundCategory;
-import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -106,6 +102,69 @@ public abstract class ServerPlayNetworkHandlerMixin_Disguiser extends ServerComm
 				// 변장된 엔티티의 DataTracker 패킷은 완전히 차단
 				// 원본 플레이어의 DataTracker 필드 타입이 변장 엔티티와 다르므로
 				// 클라이언트에 전송하면 타입 불일치로 크래시 발생
+				// 하지만 Shared Flag(0번 인덱스 - 달리기, 불, 웅크리기 등)는 동기화 필요
+				List<DataTracker.SerializedEntry<?>> trackedValues = ((EntityTrackerUpdateS2CPacketAccessor) packet)
+						.getTrackedValues();
+				boolean hasSharedFlags = false;
+
+				// DEBUG: Print tracked values (Removed)
+				if (trackedValues != null) {
+					for (DataTracker.SerializedEntry<?> entry : trackedValues) {
+						if (entry.id() == 0) {
+							hasSharedFlags = true;
+							break;
+						}
+					}
+				}
+
+				if (hasSharedFlags) {
+					((DisguiseUtils) disguise).updateTrackedData();
+					Entity disguiseEntity = disguise.getDisguiseEntity();
+					if (disguiseEntity != null) {
+						var dataTracker = disguiseEntity.getDataTracker();
+						if (dataTracker != null) {
+							// updateTrackedData에서 setSprinting 등을 호출하므로 값은 변경되었으나,
+							// dirty check에서 걸러졌을 수 있음. getChangedEntries() 결과를 가져옴.
+							var allEntries = dataTracker.getChangedEntries();
+							if (allEntries == null) {
+								allEntries = new ArrayList<>();
+							} else {
+								allEntries = new ArrayList<>(allEntries); // Ensure mutable
+							}
+
+							// Check if flags (Index 0) are present
+							boolean flagsPresent = false;
+							for (var entry : allEntries) {
+								if (entry.id() == 0) {
+									flagsPresent = true;
+									break;
+								}
+							}
+
+							// If not present, manually add current value
+							if (!flagsPresent) {
+								try {
+									var flagsData = EntityAccessor.getFLAGS();
+									byte currentFlags = dataTracker.get(flagsData);
+									// DataTracker.SerializedEntry record: (int id, TrackedDataHandler<T> handler, T
+									// value)
+									// TrackedData has dataType() which returns the handler
+									allEntries.add(new DataTracker.SerializedEntry<>(flagsData.id(),
+											flagsData.dataType(), currentFlags));
+								} catch (Exception e) {
+									// Ignore
+								}
+							}
+
+							if (!allEntries.isEmpty()) {
+								add.accept(new EntityTrackerUpdateS2CPacket(entityId, allEntries));
+							}
+						}
+					}
+				} else {
+					// No shared flags found. Dropping packet.
+				}
+
 				remove.run();
 				return;
 			} else if (packet instanceof EntityAttributesS2CPacket && !((EntityDisguise) this.player).hasTrueSight()) {
