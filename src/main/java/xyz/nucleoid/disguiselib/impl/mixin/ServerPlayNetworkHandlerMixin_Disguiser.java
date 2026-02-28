@@ -183,6 +183,42 @@ public abstract class ServerPlayNetworkHandlerMixin_Disguiser extends ServerComm
 						return;
 					}
 				}
+			} else if (packet instanceof ItemPickupAnimationS2CPacket pickupPacket
+					&& !((EntityDisguise) this.player).hasTrueSight()) {
+				if (this.disguiselib$shouldDropForNonLivingDisguise(world, pickupPacket.getCollectorEntityId())) {
+					remove.run();
+					return;
+				}
+			} else if (packet instanceof EntityEquipmentUpdateS2CPacket equipmentPacket
+					&& !((EntityDisguise) this.player).hasTrueSight()) {
+				if (this.disguiselib$shouldDropForNonLivingDisguise(world, equipmentPacket.getEntityId())) {
+					remove.run();
+					return;
+				}
+			} else if (packet instanceof EntityStatusEffectS2CPacket effectPacket
+					&& !((EntityDisguise) this.player).hasTrueSight()) {
+				if (this.disguiselib$shouldDropForNonLivingDisguise(world, effectPacket.getEntityId())) {
+					remove.run();
+					return;
+				}
+			} else if (packet instanceof RemoveEntityStatusEffectS2CPacket effectPacket
+					&& !((EntityDisguise) this.player).hasTrueSight()) {
+				if (this.disguiselib$shouldDropForNonLivingDisguise(world, effectPacket.entityId())) {
+					remove.run();
+					return;
+				}
+			} else if (packet instanceof DamageTiltS2CPacket damageTiltPacket
+					&& !((EntityDisguise) this.player).hasTrueSight()) {
+				if (this.disguiselib$shouldDropForNonLivingDisguise(world, damageTiltPacket.id())) {
+					remove.run();
+					return;
+				}
+			} else if (packet instanceof EntityAnimationS2CPacket animationPacket
+					&& !((EntityDisguise) this.player).hasTrueSight()) {
+				if (this.disguiselib$shouldDropForNonLivingDisguise(world, animationPacket.getEntityId())) {
+					remove.run();
+					return;
+				}
 			} else if (packet instanceof EntityVelocityUpdateS2CPacket velocityPacket) {
 				int id = velocityPacket.getEntityId();
 				if (id != this.player.getId()) {
@@ -196,6 +232,21 @@ public abstract class ServerPlayNetworkHandlerMixin_Disguiser extends ServerComm
 			long duration = System.nanoTime() - startTime;
 			DisguiseTracker.recordPacketTransform(duration);
 		}
+	}
+
+	@Unique
+	private boolean disguiselib$shouldDropForNonLivingDisguise(World world, int entityId) {
+		if (entityId == this.player.getId()) {
+			return false;
+		}
+
+		Entity entity = world.getEntityById(entityId);
+		if (entity == null) {
+			return false;
+		}
+
+		EntityDisguise entityDisguise = (EntityDisguise) entity;
+		return entityDisguise.isDisguised() && !((DisguiseUtils) entity).disguiseAlive();
 	}
 
 	/**
