@@ -48,7 +48,12 @@ public class DisguiseCommand {
 										.executes(DisguiseCommand::setDisguise)
 										.then(argument("nbt", NbtCompoundArgumentType.nbtCompound())
 												.executes(DisguiseCommand::setDisguise))))
-						.then(literal("clear").executes(DisguiseCommand::clearDisguise))));
+						.then(literal("clear").executes(DisguiseCommand::clearDisguise)))
+				.then(literal("option")
+						.then(literal("player-nameplate")
+								.executes(DisguiseCommand::queryPlayerNameplateOption)
+								.then(literal("on").executes(ctx -> setPlayerNameplateOption(ctx, true)))
+								.then(literal("off").executes(ctx -> setPlayerNameplateOption(ctx, false))))));
 	}
 
 	private static int clearDisguise(CommandContext<ServerCommandSource> ctx) throws CommandSyntaxException {
@@ -114,5 +119,28 @@ public class DisguiseCommand {
 			src.sendError(Text.literal("Failed to disguise entities").formatted(Formatting.RED));
 			return 0;
 		}
+	}
+
+	private static int queryPlayerNameplateOption(CommandContext<ServerCommandSource> ctx) {
+		boolean enabled = DisguiseLib.isPlayerDisguiseNameplateEnabled();
+		ctx.getSource().sendFeedback(() -> Text.literal("플레이어 위장 이름표 옵션: " + (enabled ? "켜짐" : "꺼짐"))
+				.formatted(enabled ? Formatting.GREEN : Formatting.YELLOW), false);
+		return enabled ? 1 : 0;
+	}
+
+	private static int setPlayerNameplateOption(CommandContext<ServerCommandSource> ctx, boolean enabled) {
+		boolean changed = DisguiseLib.setPlayerDisguiseNameplateEnabled(ctx.getSource().getServer(), enabled);
+		if (changed) {
+			ctx.getSource().sendFeedback(
+					() -> Text.literal("플레이어 위장 이름표 옵션을 " + (enabled ? "켰음" : "껐음"))
+							.formatted(Formatting.GREEN),
+					true);
+		} else {
+			ctx.getSource().sendFeedback(
+					() -> Text.literal("플레이어 위장 이름표 옵션이 이미 " + (enabled ? "켜져 있음" : "꺼져 있음"))
+							.formatted(Formatting.YELLOW),
+					false);
+		}
+		return Command.SINGLE_SUCCESS;
 	}
 }

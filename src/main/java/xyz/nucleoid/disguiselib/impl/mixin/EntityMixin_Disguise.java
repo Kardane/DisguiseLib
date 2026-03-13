@@ -31,7 +31,10 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import xyz.nucleoid.disguiselib.api.DisguiseEvents;
 import xyz.nucleoid.disguiselib.api.DisguiseUtils;
 import xyz.nucleoid.disguiselib.api.EntityDisguise;
+import xyz.nucleoid.disguiselib.impl.DisguiseLib;
+import xyz.nucleoid.disguiselib.impl.DisguiseSync;
 import xyz.nucleoid.disguiselib.impl.DisguiseTracker;
+import xyz.nucleoid.disguiselib.impl.PlayerDisguiseNameplatePolicy;
 import xyz.nucleoid.disguiselib.impl.mixin.accessor.EntityTrackerEntryAccessor;
 import xyz.nucleoid.disguiselib.impl.mixin.accessor.ServerChunkLoadingManagerAccessor;
 
@@ -158,22 +161,7 @@ public abstract class EntityMixin_Disguise implements EntityDisguise, DisguiseUt
 		// Minor datatracker thingies
 		this.updateTrackedData();
 
-		// 트래커 업데이트 - null 체크 추가
-		if (this.world instanceof ServerWorld serverWorld) {
-			var chunkLoadingManager = serverWorld.getChunkManager().chunkLoadingManager;
-			if (chunkLoadingManager != null) {
-				var trackers = ((ServerChunkLoadingManagerAccessor) chunkLoadingManager).getEntityTrackers();
-				if (trackers != null) {
-					var tracker = trackers.get(this.getId());
-					if (tracker != null) {
-						for (var listener : tracker.getListeners()) {
-							tracker.getEntry().stopTracking(listener.getPlayer());
-							tracker.getEntry().startTracking(listener.getPlayer());
-						}
-					}
-				}
-			}
-		}
+		DisguiseSync.refreshTracking(this.disguiselib$entity);
 
 		// 트래커에 등록
 		DisguiseTracker.onDisguise(this.disguiselib$entity);
@@ -228,22 +216,7 @@ public abstract class EntityMixin_Disguise implements EntityDisguise, DisguiseUt
 		this.disguiselib$disguiseEntity = null;
 		this.disguiselib$disguiseType = null;
 
-		// 트래커 업데이트
-		if (this.world instanceof ServerWorld serverWorld) {
-			var chunkLoadingManager = serverWorld.getChunkManager().chunkLoadingManager;
-			if (chunkLoadingManager != null) {
-				var trackers = ((ServerChunkLoadingManagerAccessor) chunkLoadingManager).getEntityTrackers();
-				if (trackers != null) {
-					var tracker = trackers.get(this.getId());
-					if (tracker != null) {
-						for (var listener : tracker.getListeners()) {
-							tracker.getEntry().stopTracking(listener.getPlayer());
-							tracker.getEntry().startTracking(listener.getPlayer());
-						}
-					}
-				}
-			}
-		}
+		DisguiseSync.refreshTracking(this.disguiselib$entity);
 
 		// 이벤트 호출
 		DisguiseEvents.AFTER_REMOVE.invoker().afterRemove(this.disguiselib$entity);
@@ -352,8 +325,14 @@ public abstract class EntityMixin_Disguise implements EntityDisguise, DisguiseUt
 		}
 
 		this.disguiselib$disguiseEntity.setNoGravity(true);
-		this.disguiselib$disguiseEntity.setCustomName(this.getCustomName());
-		this.disguiselib$disguiseEntity.setCustomNameVisible(this.isCustomNameVisible());
+		var nameplateState = PlayerDisguiseNameplatePolicy.resolve(
+				DisguiseLib.isPlayerDisguiseNameplateEnabled(),
+				this.disguiselib$entity instanceof PlayerEntity,
+				this.disguiselib$entity instanceof PlayerEntity ? this.getDisplayName() : null,
+				this.getCustomName(),
+				this.isCustomNameVisible());
+		this.disguiselib$disguiseEntity.setCustomName(nameplateState.customName());
+		this.disguiselib$disguiseEntity.setCustomNameVisible(nameplateState.visible());
 		this.disguiselib$disguiseEntity.setSprinting(this.isSprinting());
 		this.disguiselib$disguiseEntity.setSneaking(this.isSneaking());
 		this.disguiselib$disguiseEntity.setSwimming(this.isSwimming());
