@@ -35,6 +35,7 @@ import xyz.nucleoid.disguiselib.impl.DisguiseLib;
 import xyz.nucleoid.disguiselib.impl.DisguiseSync;
 import xyz.nucleoid.disguiselib.impl.DisguiseTracker;
 import xyz.nucleoid.disguiselib.impl.PlayerDisguiseNameplatePolicy;
+import xyz.nucleoid.disguiselib.impl.PlayerDisguiseSneakPolicy;
 import xyz.nucleoid.disguiselib.impl.mixin.accessor.EntityTrackerEntryAccessor;
 import xyz.nucleoid.disguiselib.impl.mixin.accessor.ServerChunkLoadingManagerAccessor;
 
@@ -334,12 +335,17 @@ public abstract class EntityMixin_Disguise implements EntityDisguise, DisguiseUt
 		this.disguiselib$disguiseEntity.setCustomName(nameplateState.customName());
 		this.disguiselib$disguiseEntity.setCustomNameVisible(nameplateState.visible());
 		this.disguiselib$disguiseEntity.setSprinting(this.isSprinting());
-		this.disguiselib$disguiseEntity.setSneaking(this.isSneaking());
+		var sneakState = PlayerDisguiseSneakPolicy.resolve(
+				DisguiseLib.isPlayerSneakEnabled(),
+				this.disguiselib$entity instanceof PlayerEntity,
+				this.isSneaking(),
+				this.getPose());
+		this.disguiselib$disguiseEntity.setSneaking(sneakState.sneaking());
 		this.disguiselib$disguiseEntity.setSwimming(this.isSwimming());
 		this.disguiselib$disguiseEntity.setGlowing(this.isGlowing());
 		this.disguiselib$disguiseEntity.setOnFire(this.isOnFire());
 		this.disguiselib$disguiseEntity.setSilent(this.isSilent());
-		this.disguiselib$disguiseEntity.setPose(this.getPose());
+		this.disguiselib$disguiseEntity.setPose(sneakState.pose());
 
 		if (this.disguiselib$disguiseEntity instanceof LivingEntity disguise
 				&& ((Object) this) instanceof LivingEntity self) {

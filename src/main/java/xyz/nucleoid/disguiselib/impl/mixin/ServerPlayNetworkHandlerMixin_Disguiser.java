@@ -2,6 +2,7 @@ package xyz.nucleoid.disguiselib.impl.mixin;
 
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.data.DataTracker;
+import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.network.ClientConnection;
 import net.minecraft.network.listener.ClientPlayPacketListener;
 import net.minecraft.network.packet.Packet;
@@ -96,24 +97,12 @@ public abstract class ServerPlayNetworkHandlerMixin_Disguiser extends ServerComm
 					return;
 				}
 
-				// 변장된 엔티티의 DataTracker 패킷은 완전히 차단
-				// 원본 플레이어의 DataTracker 필드 타입이 변장 엔티티와 다르므로
-				// 클라이언트에 전송하면 타입 불일치로 크래시 발생
-				// 하지만 Shared Flag(0번 인덱스 - 달리기, 불, 웅크리기 등)는 동기화 필요
 				List<DataTracker.SerializedEntry<?>> trackedValues = ((EntityTrackerUpdateS2CPacketAccessor) packet)
 						.getTrackedValues();
-				boolean hasSharedFlags = false;
+				boolean shouldRefreshDisguiseTracker = original instanceof PlayerEntity
+						|| this.disguiselib$hasSharedFlags(trackedValues);
 
-				if (trackedValues != null) {
-					for (DataTracker.SerializedEntry<?> entry : trackedValues) {
-						if (entry.id() == 0) {
-							hasSharedFlags = true;
-							break;
-						}
-					}
-				}
-
-				if (hasSharedFlags) {
+				if (shouldRefreshDisguiseTracker) {
 					((DisguiseUtils) disguise).updateTrackedData();
 					Entity disguiseEntity = disguise.getDisguiseEntity();
 					if (disguiseEntity != null) {
@@ -228,6 +217,21 @@ public abstract class ServerPlayNetworkHandlerMixin_Disguiser extends ServerComm
 			long duration = System.nanoTime() - startTime;
 			DisguiseTracker.recordPacketTransform(duration);
 		}
+	}
+
+	@Unique
+	private boolean disguiselib$hasSharedFlags(List<DataTracker.SerializedEntry<?>> trackedValues) {
+		if (trackedValues == null) {
+			return false;
+		}
+
+		for (DataTracker.SerializedEntry<?> entry : trackedValues) {
+			if (entry.id() == 0) {
+				return true;
+			}
+		}
+
+		return false;
 	}
 
 	@Unique

@@ -15,6 +15,7 @@ public final class DisguiseLibConfig {
 	private static final String FILE_NAME = "disguiselib.json";
 
 	private boolean playerDisguiseNameplate;
+	private boolean playerSneak;
 
 	public boolean isPlayerDisguiseNameplate() {
 		return this.playerDisguiseNameplate;
@@ -22,6 +23,14 @@ public final class DisguiseLibConfig {
 
 	public void setPlayerDisguiseNameplate(boolean playerDisguiseNameplate) {
 		this.playerDisguiseNameplate = playerDisguiseNameplate;
+	}
+
+	public boolean isPlayerSneak() {
+		return this.playerSneak;
+	}
+
+	public void setPlayerSneak(boolean playerSneak) {
+		this.playerSneak = playerSneak;
 	}
 
 	public static DisguiseLibConfig load(Path configDir) {
