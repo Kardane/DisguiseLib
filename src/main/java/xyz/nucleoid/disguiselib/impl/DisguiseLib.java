@@ -48,6 +48,26 @@ public class DisguiseLib {
 		return true;
 	}
 
+	public static boolean isPlayerSneakEnabled() {
+		return config.isPlayerSneak();
+	}
+
+	public static boolean setPlayerSneakEnabled(MinecraftServer server, boolean enabled) {
+		if (config.isPlayerSneak() == enabled) {
+			return false;
+		}
+
+		config.setPlayerSneak(enabled);
+		try {
+			config.save(FabricLoader.getInstance().getConfigDir());
+		} catch (IOException e) {
+			getLogger("DisguiseLib").warn("플레이어 위장 웅크리기 설정 저장 실패", e);
+		}
+
+		DisguiseSync.refreshDisguisedPlayers(server);
+		return true;
+	}
+
 	public static void setPlayerClientVisibility(boolean clientVisibility) {
 		DISGUISE_TEAM.setShowFriendlyInvisibles(clientVisibility);
 	}
