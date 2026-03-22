@@ -14,10 +14,21 @@ class PlayerDisguiseNameplatePolicyTest {
 		Text customName = Text.literal("hidden");
 
 		PlayerDisguiseNameplatePolicy.NameplateState state = PlayerDisguiseNameplatePolicy.resolve(true, true,
-				displayName, customName, false);
+				false, displayName, customName, false);
 
 		assertEquals("ParkJ", state.customName().getString());
 		assertTrue(state.visible());
+	}
+
+	@Test
+	void excludedDisguiseKeepsOriginalNameplateState() {
+		Text customName = Text.literal("display");
+
+		PlayerDisguiseNameplatePolicy.NameplateState state = PlayerDisguiseNameplatePolicy.resolve(true, true,
+				true, Text.literal("ParkJ"), customName, false);
+
+		assertEquals("display", state.customName().getString());
+		assertEquals(false, state.visible());
 	}
 
 	@Test
@@ -25,7 +36,7 @@ class PlayerDisguiseNameplatePolicyTest {
 		Text customName = Text.literal("custom");
 
 		PlayerDisguiseNameplatePolicy.NameplateState state = PlayerDisguiseNameplatePolicy.resolve(false, true,
-				Text.literal("ParkJ"), customName, false);
+				false, Text.literal("ParkJ"), customName, false);
 
 		assertEquals("custom", state.customName().getString());
 		assertEquals(false, state.visible());
@@ -34,7 +45,7 @@ class PlayerDisguiseNameplatePolicyTest {
 	@Test
 	void missingOriginalNameKeepsNameNull() {
 		PlayerDisguiseNameplatePolicy.NameplateState state = PlayerDisguiseNameplatePolicy.resolve(false, false,
-				Text.literal("ParkJ"), null, false);
+				false, Text.literal("ParkJ"), null, false);
 
 		assertNull(state.customName());
 		assertEquals(false, state.visible());

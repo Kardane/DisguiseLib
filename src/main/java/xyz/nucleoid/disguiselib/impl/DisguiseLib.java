@@ -2,12 +2,15 @@ package xyz.nucleoid.disguiselib.impl;
 
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.fabricmc.loader.api.FabricLoader;
+import net.minecraft.entity.EntityType;
+import net.minecraft.registry.Registries;
 import net.minecraft.scoreboard.AbstractTeam;
 import net.minecraft.scoreboard.Scoreboard;
 import net.minecraft.scoreboard.Team;
 import net.minecraft.server.MinecraftServer;
 
 import java.io.IOException;
+import java.util.List;
 
 import static org.apache.logging.log4j.LogManager.getLogger;
 
@@ -30,6 +33,15 @@ public class DisguiseLib {
 
 	public static boolean isPlayerDisguiseNameplateEnabled() {
 		return config.isPlayerDisguiseNameplate();
+	}
+
+	public static List<String> getPlayerDisguiseNameplateExcludedEntities() {
+		return config.getPlayerDisguiseNameplateExcludedEntities();
+	}
+
+	public static boolean isPlayerDisguiseNameplateExcluded(EntityType<?> entityType) {
+		String entityTypeId = Registries.ENTITY_TYPE.getId(entityType).toString();
+		return config.getPlayerDisguiseNameplateExcludedEntities().stream().anyMatch(entityTypeId::equals);
 	}
 
 	public static boolean setPlayerDisguiseNameplateEnabled(MinecraftServer server, boolean enabled) {

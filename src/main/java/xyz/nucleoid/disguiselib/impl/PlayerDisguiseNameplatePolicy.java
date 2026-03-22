@@ -7,9 +7,9 @@ public final class PlayerDisguiseNameplatePolicy {
 	private PlayerDisguiseNameplatePolicy() {
 	}
 
-	public static NameplateState resolve(boolean enabled, boolean sourceIsPlayer, @Nullable Text playerDisplayName,
-			@Nullable Text originalCustomName, boolean originalCustomNameVisible) {
-		if (enabled && sourceIsPlayer && playerDisplayName != null) {
+	public static NameplateState resolve(boolean enabled, boolean sourceIsPlayer, boolean disguiseTypeExcluded,
+			@Nullable Text playerDisplayName, @Nullable Text originalCustomName, boolean originalCustomNameVisible) {
+		if (enabled && sourceIsPlayer && !disguiseTypeExcluded && playerDisplayName != null) {
 			return new NameplateState(playerDisplayName.copy(), true);
 		}
 

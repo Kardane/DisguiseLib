@@ -329,6 +329,7 @@ public abstract class EntityMixin_Disguise implements EntityDisguise, DisguiseUt
 		var nameplateState = PlayerDisguiseNameplatePolicy.resolve(
 				DisguiseLib.isPlayerDisguiseNameplateEnabled(),
 				this.disguiselib$entity instanceof PlayerEntity,
+				DisguiseLib.isPlayerDisguiseNameplateExcluded(this.disguiselib$disguiseEntity.getType()),
 				this.disguiselib$entity instanceof PlayerEntity ? this.getDisplayName() : null,
 				this.getCustomName(),
 				this.isCustomNameVisible());
