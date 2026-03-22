@@ -9,13 +9,22 @@ import java.io.Reader;
 import java.io.Writer;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
 
 public final class DisguiseLibConfig {
 	private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
 	private static final String FILE_NAME = "disguiselib.json";
+	private static final List<String> DEFAULT_PLAYER_DISGUISE_NAMEPLATE_EXCLUDED_ENTITIES = List.of(
+			"minecraft:armor_stand",
+			"minecraft:block_display",
+			"minecraft:item_display",
+			"minecraft:text_display");
 
 	private boolean playerDisguiseNameplate;
 	private boolean playerSneak;
+	private List<String> playerDisguiseNameplateExcludedEntities = new ArrayList<>(
+			DEFAULT_PLAYER_DISGUISE_NAMEPLATE_EXCLUDED_ENTITIES);
 
 	public boolean isPlayerDisguiseNameplate() {
 		return this.playerDisguiseNameplate;
@@ -33,6 +42,20 @@ public final class DisguiseLibConfig {
 		this.playerSneak = playerSneak;
 	}
 
+	public List<String> getPlayerDisguiseNameplateExcludedEntities() {
+		return List.copyOf(this.playerDisguiseNameplateExcludedEntities);
+	}
+
+	public void setPlayerDisguiseNameplateExcludedEntities(List<String> excludedEntities) {
+		if (excludedEntities == null) {
+			this.playerDisguiseNameplateExcludedEntities = new ArrayList<>(
+					DEFAULT_PLAYER_DISGUISE_NAMEPLATE_EXCLUDED_ENTITIES);
+			return;
+		}
+
+		this.playerDisguiseNameplateExcludedEntities = new ArrayList<>(excludedEntities);
+	}
+
 	public static DisguiseLibConfig load(Path configDir) {
 		Path path = resolve(configDir);
 		if (Files.notExists(path)) {
@@ -41,7 +64,12 @@ public final class DisguiseLibConfig {
 
 		try (Reader reader = Files.newBufferedReader(path)) {
 			DisguiseLibConfig config = GSON.fromJson(reader, DisguiseLibConfig.class);
-			return config != null ? config : new DisguiseLibConfig();
+			if (config == null) {
+				return new DisguiseLibConfig();
+			}
+
+			config.fillDefaults();
+			return config;
 		} catch (IOException | JsonParseException ignored) {
 			return new DisguiseLibConfig();
 		}
@@ -57,5 +85,12 @@ public final class DisguiseLibConfig {
 
 	public static Path resolve(Path configDir) {
 		return configDir.resolve(FILE_NAME);
+	}
+
+	private void fillDefaults() {
+		if (this.playerDisguiseNameplateExcludedEntities == null) {
+			this.playerDisguiseNameplateExcludedEntities = new ArrayList<>(
+					DEFAULT_PLAYER_DISGUISE_NAMEPLATE_EXCLUDED_ENTITIES);
+		}
 	}
 }

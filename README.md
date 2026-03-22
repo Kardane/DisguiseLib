@@ -15,6 +15,27 @@ A server-side library that allows disguising entities as other ones.
 
 이 옵션은 기본값이 `off`이고 `config/disguiselib.json`에 저장되어 서버 재시작 후에도 유지됨.
 
+`player-nameplate` 옵션은 기본적으로 아래 위장 엔티티를 제외함.
+- `minecraft:armor_stand`
+- `minecraft:block_display`
+- `minecraft:item_display`
+- `minecraft:text_display`
+
+제외 목록은 `config/disguiselib.json`의 `playerDisguiseNameplateExcludedEntities`에서 수정 가능함. 목록이 비어 있으면 모든 위장 엔티티에 이름표 강제 노출이 적용됨.
+
+```json
+{
+  "playerDisguiseNameplate": false,
+  "playerSneak": false,
+  "playerDisguiseNameplateExcludedEntities": [
+    "minecraft:armor_stand",
+    "minecraft:block_display",
+    "minecraft:item_display",
+    "minecraft:text_display"
+  ]
+}
+```
+
 ## Dependecy
 ```gradle
 repositories {
