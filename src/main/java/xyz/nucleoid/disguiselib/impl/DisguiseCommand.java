@@ -4,49 +4,48 @@ import com.mojang.brigadier.Command;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
-import me.lucko.fabric.api.permissions.v0.Permissions;
-import net.minecraft.command.CommandRegistryAccess;
-import net.minecraft.command.argument.EntityArgumentType;
-import net.minecraft.command.argument.NbtCompoundArgumentType;
-import net.minecraft.command.argument.RegistryEntryReferenceArgumentType;
-import net.minecraft.command.suggestion.SuggestionProviders;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.EntityType;
-import net.minecraft.entity.SpawnReason;
-import net.minecraft.nbt.NbtCompound;
-import net.minecraft.registry.Registries;
-import net.minecraft.registry.RegistryKeys;
-import net.minecraft.server.command.CommandManager;
-import net.minecraft.server.command.ServerCommandSource;
-import net.minecraft.text.Text;
-import net.minecraft.util.Formatting;
+import net.minecraft.ChatFormatting;
+import net.minecraft.commands.CommandBuildContext;
+import net.minecraft.commands.CommandSourceStack;
+import net.minecraft.commands.Commands;
+import net.minecraft.commands.arguments.CompoundTagArgument;
+import net.minecraft.commands.arguments.EntityArgument;
+import net.minecraft.commands.arguments.ResourceArgument;
+import net.minecraft.commands.synchronization.SuggestionProviders;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.chat.Component;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntitySpawnReason;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.server.permissions.LevelBasedPermissionSet;
+import net.minecraft.server.permissions.PermissionLevel;
 import xyz.nucleoid.disguiselib.api.EntityDisguise;
 
 import java.util.Collection;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static net.minecraft.command.argument.EntityArgumentType.entities;
-import static net.minecraft.command.suggestion.SuggestionProviders.SUMMONABLE_ENTITIES;
-import static net.minecraft.server.command.CommandManager.argument;
-import static net.minecraft.server.command.CommandManager.literal;
+import static net.minecraft.commands.arguments.EntityArgument.entities;
+import static net.minecraft.commands.synchronization.SuggestionProviders.SUMMONABLE_ENTITIES;
+import static net.minecraft.commands.Commands.argument;
+import static net.minecraft.commands.Commands.literal;
 
 public class DisguiseCommand {
 
-	private static final Text NO_PERMISSION_ERROR = Text.translatable("commands.help.failed");
-
-	public static void register(CommandDispatcher<ServerCommandSource> dispatcher,
-			CommandRegistryAccess commandRegistryAccess,
-			CommandManager.RegistrationEnvironment registrationEnvironment) {
+	public static void register(CommandDispatcher<CommandSourceStack> dispatcher,
+			CommandBuildContext commandRegistryAccess,
+			Commands.CommandSelection registrationEnvironment) {
 		dispatcher.register(literal("disguise")
-				.requires(Permissions.require("disguiselib.disguise", 2))
+				.requires(DisguiseCommand::hasDisguisePermission)
 				.then(argument("target", entities())
 						.then(literal("as")
 								.then(argument("disguise",
-										new RegistryEntryReferenceArgumentType<>(commandRegistryAccess,
-												RegistryKeys.ENTITY_TYPE))
+										new ResourceArgument<>(commandRegistryAccess,
+												Registries.ENTITY_TYPE))
 										.suggests(SuggestionProviders.cast(SUMMONABLE_ENTITIES))
 										.executes(DisguiseCommand::setDisguise)
-										.then(argument("nbt", NbtCompoundArgumentType.nbtCompound())
+										.then(argument("nbt", CompoundTagArgument.compoundTag())
 												.executes(DisguiseCommand::setDisguise))))
 						.then(literal("clear").executes(DisguiseCommand::clearDisguise)))
 				.then(literal("option")
@@ -60,9 +59,9 @@ public class DisguiseCommand {
 								.then(literal("off").executes(ctx -> setPlayerSneakOption(ctx, false))))));
 	}
 
-	private static int clearDisguise(CommandContext<ServerCommandSource> ctx) throws CommandSyntaxException {
-		Collection<? extends Entity> entities = EntityArgumentType.getEntities(ctx, "target");
-		ServerCommandSource src = ctx.getSource();
+	private static int clearDisguise(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
+		Collection<? extends Entity> entities = EntityArgument.getEntities(ctx, "target");
+		CommandSourceStack src = ctx.getSource();
 		AtomicInteger successCount = new AtomicInteger(0);
 
 		entities.forEach(entity -> {
@@ -74,40 +73,40 @@ public class DisguiseCommand {
 
 		int count = successCount.get();
 		if (count > 0) {
-			src.sendFeedback(() -> Text.literal("Cleared disguise from " + count + " entity(ies)")
-					.formatted(Formatting.GREEN), true);
+			src.sendSuccess(() -> Component.literal("Cleared disguise from " + count + " entity(ies)")
+					.withStyle(ChatFormatting.GREEN), true);
 			return count;
 		} else {
-			src.sendError(Text.literal("No disguised entities found").formatted(Formatting.RED));
+			src.sendFailure(Component.literal("No disguised entities found").withStyle(ChatFormatting.RED));
 			return 0;
 		}
 	}
 
-	private static int setDisguise(CommandContext<ServerCommandSource> ctx) throws CommandSyntaxException {
-		Collection<? extends Entity> entities = EntityArgumentType.getEntities(ctx, "target");
-		ServerCommandSource src = ctx.getSource();
-		var type = RegistryEntryReferenceArgumentType.getRegistryEntry(ctx, "disguise", RegistryKeys.ENTITY_TYPE);
-		var disguiseId = Registries.ENTITY_TYPE.getId(type.value());
+	private static int setDisguise(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
+		Collection<? extends Entity> entities = EntityArgument.getEntities(ctx, "target");
+		CommandSourceStack src = ctx.getSource();
+		var type = ResourceArgument.getResource(ctx, "disguise", Registries.ENTITY_TYPE);
+		var disguiseId = BuiltInRegistries.ENTITY_TYPE.getKey(type.value());
 
 		// 플레이어 타입은 허용하지 않음
 		if (type.value() == EntityType.PLAYER) {
-			src.sendError(Text.literal("Disguising as player is not supported").formatted(Formatting.RED));
+			src.sendFailure(Component.literal("Disguising as player is not supported").withStyle(ChatFormatting.RED));
 			return 0;
 		}
 
-		NbtCompound nbt;
+		CompoundTag nbt;
 		try {
-			nbt = NbtCompoundArgumentType.getNbtCompound(ctx, "nbt").copy();
+			nbt = CompoundTagArgument.getCompoundTag(ctx, "nbt").copy();
 		} catch (IllegalArgumentException ignored) {
-			nbt = new NbtCompound();
+			nbt = new CompoundTag();
 		}
 		nbt.putString("id", disguiseId.toString());
 
-		NbtCompound finalNbt = nbt;
+		CompoundTag finalNbt = nbt;
 		AtomicInteger successCount = new AtomicInteger(0);
 
-		entities.forEach(entity -> EntityType.loadEntityWithPassengers(finalNbt, ctx.getSource().getWorld(),
-				SpawnReason.LOAD, (entityx) -> {
+		entities.forEach(entity -> EntityType.loadEntityRecursive(finalNbt, ctx.getSource().getLevel(),
+				EntitySpawnReason.LOAD, (entityx) -> {
 					((EntityDisguise) entity).disguiseAs(entityx);
 					successCount.incrementAndGet();
 					return entityx;
@@ -115,59 +114,67 @@ public class DisguiseCommand {
 
 		int count = successCount.get();
 		if (count > 0) {
-			String disguiseName = type.value().getName().getString();
-			src.sendFeedback(() -> Text.literal("Disguised " + count + " entity(ies) as " + disguiseName)
-					.formatted(Formatting.GREEN), true);
+			String disguiseName = type.value().getDescription().getString();
+			src.sendSuccess(() -> Component.literal("Disguised " + count + " entity(ies) as " + disguiseName)
+					.withStyle(ChatFormatting.GREEN), true);
 			return count;
 		} else {
-			src.sendError(Text.literal("Failed to disguise entities").formatted(Formatting.RED));
+			src.sendFailure(Component.literal("Failed to disguise entities").withStyle(ChatFormatting.RED));
 			return 0;
 		}
 	}
 
-	private static int queryPlayerNameplateOption(CommandContext<ServerCommandSource> ctx) {
+	private static int queryPlayerNameplateOption(CommandContext<CommandSourceStack> ctx) {
 		boolean enabled = DisguiseLib.isPlayerDisguiseNameplateEnabled();
-		ctx.getSource().sendFeedback(() -> Text.literal("플레이어 위장 이름표 옵션: " + (enabled ? "켜짐" : "꺼짐"))
-				.formatted(enabled ? Formatting.GREEN : Formatting.YELLOW), false);
+		ctx.getSource().sendSuccess(() -> Component.literal("플레이어 위장 이름표 옵션: " + (enabled ? "켜짐" : "꺼짐"))
+				.withStyle(enabled ? ChatFormatting.GREEN : ChatFormatting.YELLOW), false);
 		return enabled ? 1 : 0;
 	}
 
-	private static int setPlayerNameplateOption(CommandContext<ServerCommandSource> ctx, boolean enabled) {
+	private static int setPlayerNameplateOption(CommandContext<CommandSourceStack> ctx, boolean enabled) {
 		boolean changed = DisguiseLib.setPlayerDisguiseNameplateEnabled(ctx.getSource().getServer(), enabled);
 		if (changed) {
-			ctx.getSource().sendFeedback(
-					() -> Text.literal("플레이어 위장 이름표 옵션을 " + (enabled ? "켰음" : "껐음"))
-							.formatted(Formatting.GREEN),
+			ctx.getSource().sendSuccess(
+					() -> Component.literal("플레이어 위장 이름표 옵션을 " + (enabled ? "켰음" : "껐음"))
+							.withStyle(ChatFormatting.GREEN),
 					true);
 		} else {
-			ctx.getSource().sendFeedback(
-					() -> Text.literal("플레이어 위장 이름표 옵션이 이미 " + (enabled ? "켜져 있음" : "꺼져 있음"))
-							.formatted(Formatting.YELLOW),
+			ctx.getSource().sendSuccess(
+					() -> Component.literal("플레이어 위장 이름표 옵션이 이미 " + (enabled ? "켜져 있음" : "꺼져 있음"))
+							.withStyle(ChatFormatting.YELLOW),
 					false);
 		}
 		return Command.SINGLE_SUCCESS;
 	}
 
-	private static int queryPlayerSneakOption(CommandContext<ServerCommandSource> ctx) {
+	private static int queryPlayerSneakOption(CommandContext<CommandSourceStack> ctx) {
 		boolean enabled = DisguiseLib.isPlayerSneakEnabled();
-		ctx.getSource().sendFeedback(() -> Text.literal("플레이어 위장 웅크리기 옵션: " + (enabled ? "켜짐" : "꺼짐"))
-				.formatted(enabled ? Formatting.GREEN : Formatting.YELLOW), false);
+		ctx.getSource().sendSuccess(() -> Component.literal("플레이어 위장 웅크리기 옵션: " + (enabled ? "켜짐" : "꺼짐"))
+				.withStyle(enabled ? ChatFormatting.GREEN : ChatFormatting.YELLOW), false);
 		return enabled ? 1 : 0;
 	}
 
-	private static int setPlayerSneakOption(CommandContext<ServerCommandSource> ctx, boolean enabled) {
+	private static int setPlayerSneakOption(CommandContext<CommandSourceStack> ctx, boolean enabled) {
 		boolean changed = DisguiseLib.setPlayerSneakEnabled(ctx.getSource().getServer(), enabled);
 		if (changed) {
-			ctx.getSource().sendFeedback(
-					() -> Text.literal("플레이어 위장 웅크리기 옵션을 " + (enabled ? "켰음" : "껐음"))
-							.formatted(Formatting.GREEN),
+			ctx.getSource().sendSuccess(
+					() -> Component.literal("플레이어 위장 웅크리기 옵션을 " + (enabled ? "켰음" : "껐음"))
+							.withStyle(ChatFormatting.GREEN),
 					true);
 		} else {
-			ctx.getSource().sendFeedback(
-					() -> Text.literal("플레이어 위장 웅크리기 옵션이 이미 " + (enabled ? "켜져 있음" : "꺼져 있음"))
-							.formatted(Formatting.YELLOW),
+			ctx.getSource().sendSuccess(
+					() -> Component.literal("플레이어 위장 웅크리기 옵션이 이미 " + (enabled ? "켜져 있음" : "꺼져 있음"))
+							.withStyle(ChatFormatting.YELLOW),
 					false);
 		}
 		return Command.SINGLE_SUCCESS;
+	}
+
+	private static boolean hasDisguisePermission(CommandSourceStack source) {
+		if (source.permissions() instanceof LevelBasedPermissionSet permissionSet) {
+			return permissionSet.level().isEqualOrHigherThan(PermissionLevel.GAMEMASTERS);
+		}
+
+		return true;
 	}
 }

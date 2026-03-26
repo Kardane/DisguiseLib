@@ -1,17 +1,30 @@
 package xyz.nucleoid.disguiselib.impl.mixin;
 
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.data.DataTracker;
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.network.ClientConnection;
-import net.minecraft.network.listener.ClientPlayPacketListener;
-import net.minecraft.network.packet.Packet;
-import net.minecraft.network.packet.c2s.play.PlayerMoveC2SPacket;
-import net.minecraft.network.packet.s2c.play.*;
+import net.minecraft.network.Connection;
+import net.minecraft.network.protocol.Packet;
+import net.minecraft.network.protocol.game.ClientGamePacketListener;
+import net.minecraft.network.protocol.game.ClientboundAddEntityPacket;
+import net.minecraft.network.protocol.game.ClientboundAnimatePacket;
+import net.minecraft.network.protocol.game.ClientboundHurtAnimationPacket;
+import net.minecraft.network.protocol.game.ClientboundRemoveEntitiesPacket;
+import net.minecraft.network.protocol.game.ClientboundRemoveMobEffectPacket;
+import net.minecraft.network.protocol.game.ClientboundSetEntityDataPacket;
+import net.minecraft.network.protocol.game.ClientboundSetEntityMotionPacket;
+import net.minecraft.network.protocol.game.ClientboundSetEquipmentPacket;
+import net.minecraft.network.protocol.game.ClientboundSetPlayerTeamPacket;
+import net.minecraft.network.protocol.game.ClientboundTakeItemEntityPacket;
+import net.minecraft.network.protocol.game.ClientboundUpdateAttributesPacket;
+import net.minecraft.network.protocol.game.ClientboundUpdateMobEffectPacket;
+import net.minecraft.network.protocol.game.ServerboundMovePlayerPacket;
+import net.minecraft.network.syncher.SynchedEntityData;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerEntity;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.network.*;
-import net.minecraft.server.world.ServerWorld;
-import net.minecraft.world.World;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.level.Level;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
@@ -31,27 +44,27 @@ import java.util.function.Predicate;
 
 import static xyz.nucleoid.disguiselib.impl.DisguiseLib.DISGUISE_TEAM;
 
-@Mixin(ServerPlayNetworkHandler.class)
-public abstract class ServerPlayNetworkHandlerMixin_Disguiser extends ServerCommonNetworkHandler
+@Mixin(ServerGamePacketListenerImpl.class)
+public abstract class ServerPlayNetworkHandlerMixin_Disguiser extends ServerCommonPacketListenerImpl
 		implements ExtendedHandler {
 	@Shadow
-	public ServerPlayerEntity player;
+	public ServerPlayer player;
 
 	@Unique
 	private boolean disguiselib$sentTeamPacket;
 
-	public ServerPlayNetworkHandlerMixin_Disguiser(MinecraftServer server, ClientConnection connection,
-			ConnectedClientData clientData) {
+	public ServerPlayNetworkHandlerMixin_Disguiser(MinecraftServer server, Connection connection,
+			CommonListenerCookie clientData) {
 		super(server, connection, clientData);
 	}
 
-	public void disguiselib$transformPacket(Packet<? super ClientPlayPacketListener> packet, Runnable remove,
-			Consumer<Packet<ClientPlayPacketListener>> add) {
+	public void disguiselib$transformPacket(Packet<? super ClientGamePacketListener> packet, Runnable remove,
+			Consumer<Packet<ClientGamePacketListener>> add) {
 		long startTime = System.nanoTime();
 
 		try {
-			World world = this.player.getEntityWorld();
-			if (packet instanceof EntitySpawnS2CPacket) {
+			Level world = this.player.level();
+			if (packet instanceof ClientboundAddEntityPacket) {
 				int entityId = ((EntitySpawnS2CPacketAccessor) packet).getEntityId();
 
 				// 자기 자신의 스폰 패킷은 변환하지 않음
@@ -59,25 +72,25 @@ public abstract class ServerPlayNetworkHandlerMixin_Disguiser extends ServerComm
 					return;
 				}
 
-				var entity = world.getEntityById(entityId);
+				var entity = world.getEntity(entityId);
 
 				// entity가 null이면 UUID로 PlayerManager에서 플레이어 조회 (Carpet 봇 재스폰 시)
-				if (entity == null && world instanceof ServerWorld serverWorld) {
+				if (entity == null && world instanceof ServerLevel serverWorld) {
 					UUID uuid = ((EntitySpawnS2CPacketAccessor) packet).getUuid();
 					if (uuid != null) {
-						entity = serverWorld.getServer().getPlayerManager().getPlayer(uuid);
+						entity = serverWorld.getServer().getPlayerList().getPlayer(uuid);
 					}
 				}
 
 				if (entity != null) {
 					disguiselib$sendFakePacket(entity, remove, add);
 				}
-			} else if (packet instanceof EntitiesDestroyS2CPacket
+			} else if (packet instanceof ClientboundRemoveEntitiesPacket
 					&& !((EntitiesDestroyS2CPacketAccessor) packet).getEntityIds().isEmpty()
 					&& ((EntitiesDestroyS2CPacketAccessor) packet).getEntityIds().getInt(0) == this.player.getId()) {
 				remove.run();
 				return;
-			} else if (packet instanceof EntityTrackerUpdateS2CPacket) {
+			} else if (packet instanceof ClientboundSetEntityDataPacket) {
 				int entityId = ((EntityTrackerUpdateS2CPacketAccessor) packet).getEntityId();
 
 				// 자기 자신의 DataTracker 패킷은 변환하지 않음
@@ -90,7 +103,7 @@ public abstract class ServerPlayNetworkHandlerMixin_Disguiser extends ServerComm
 					return;
 				}
 
-				Entity original = world.getEntityById(entityId);
+				Entity original = world.getEntity(entityId);
 				if (original == null) {
 					return;
 				}
@@ -100,20 +113,20 @@ public abstract class ServerPlayNetworkHandlerMixin_Disguiser extends ServerComm
 					return;
 				}
 
-				List<DataTracker.SerializedEntry<?>> trackedValues = ((EntityTrackerUpdateS2CPacketAccessor) packet)
+				List<SynchedEntityData.DataValue<?>> trackedValues = ((EntityTrackerUpdateS2CPacketAccessor) packet)
 						.getTrackedValues();
-				boolean shouldRefreshDisguiseTracker = original instanceof PlayerEntity
+				boolean shouldRefreshDisguiseTracker = original instanceof Player
 						|| this.disguiselib$hasSharedFlags(trackedValues);
 
 				if (shouldRefreshDisguiseTracker) {
 					((DisguiseUtils) disguise).updateTrackedData();
 					Entity disguiseEntity = disguise.getDisguiseEntity();
 					if (disguiseEntity != null) {
-						var dataTracker = disguiseEntity.getDataTracker();
+						var dataTracker = disguiseEntity.getEntityData();
 						if (dataTracker != null) {
 							// updateTrackedData에서 setSprinting 등을 호출하므로 값은 변경되었으나,
 							// dirty check에서 걸러졌을 수 있음. getChangedEntries() 결과를 가져옴.
-							var allEntries = dataTracker.getChangedEntries();
+							var allEntries = dataTracker.getNonDefaultValues();
 							if (allEntries == null) {
 								allEntries = new ArrayList<>();
 							} else {
@@ -137,15 +150,15 @@ public abstract class ServerPlayNetworkHandlerMixin_Disguiser extends ServerComm
 									// DataTracker.SerializedEntry record: (int id, TrackedDataHandler<T> handler, T
 									// value)
 									// TrackedData has dataType() which returns the handler
-									allEntries.add(new DataTracker.SerializedEntry<>(flagsData.id(),
-											flagsData.dataType(), currentFlags));
+									allEntries.add(new SynchedEntityData.DataValue<>(flagsData.id(),
+											flagsData.serializer(), currentFlags));
 								} catch (Exception e) {
 									// Ignore
 								}
 							}
 
 							if (!allEntries.isEmpty()) {
-								add.accept(new EntityTrackerUpdateS2CPacket(entityId, allEntries));
+								add.accept(new ClientboundSetEntityDataPacket(entityId, allEntries));
 							}
 						}
 					}
@@ -155,7 +168,7 @@ public abstract class ServerPlayNetworkHandlerMixin_Disguiser extends ServerComm
 
 				remove.run();
 				return;
-			} else if (packet instanceof EntityAttributesS2CPacket && !((EntityDisguise) this.player).hasTrueSight()) {
+			} else if (packet instanceof ClientboundUpdateAttributesPacket && !((EntityDisguise) this.player).hasTrueSight()) {
 				int entityId = ((EntityAttributesS2CPacketAccessor) packet).getEntityId();
 
 				// 자기 자신의 속성 패킷은 변환하지 않음
@@ -163,7 +176,7 @@ public abstract class ServerPlayNetworkHandlerMixin_Disguiser extends ServerComm
 					return;
 				}
 
-				Entity original = world.getEntityById(entityId);
+				Entity original = world.getEntity(entityId);
 				if (original != null) {
 					EntityDisguise entityDisguise = (EntityDisguise) original;
 					if (entityDisguise.isDisguised() && !((DisguiseUtils) original).disguiseAlive()) {
@@ -171,46 +184,46 @@ public abstract class ServerPlayNetworkHandlerMixin_Disguiser extends ServerComm
 						return;
 					}
 				}
-			} else if (packet instanceof ItemPickupAnimationS2CPacket pickupPacket
+			} else if (packet instanceof ClientboundTakeItemEntityPacket pickupPacket
 					&& !((EntityDisguise) this.player).hasTrueSight()) {
-				if (this.disguiselib$shouldDropForNonLivingDisguise(world, pickupPacket.getCollectorEntityId())) {
+				if (this.disguiselib$shouldDropForNonLivingDisguise(world, pickupPacket.getPlayerId())) {
 					remove.run();
 					return;
 				}
-			} else if (packet instanceof EntityEquipmentUpdateS2CPacket equipmentPacket
+			} else if (packet instanceof ClientboundSetEquipmentPacket equipmentPacket
 					&& !((EntityDisguise) this.player).hasTrueSight()) {
-				if (this.disguiselib$shouldDropForNonLivingDisguise(world, equipmentPacket.getEntityId())) {
+				if (this.disguiselib$shouldDropForNonLivingDisguise(world, equipmentPacket.getEntity())) {
 					remove.run();
 					return;
 				}
-			} else if (packet instanceof EntityStatusEffectS2CPacket effectPacket
+			} else if (packet instanceof ClientboundUpdateMobEffectPacket effectPacket
 					&& !((EntityDisguise) this.player).hasTrueSight()) {
 				if (this.disguiselib$shouldDropForNonLivingDisguise(world, effectPacket.getEntityId())) {
 					remove.run();
 					return;
 				}
-			} else if (packet instanceof RemoveEntityStatusEffectS2CPacket effectPacket
+			} else if (packet instanceof ClientboundRemoveMobEffectPacket effectPacket
 					&& !((EntityDisguise) this.player).hasTrueSight()) {
 				if (this.disguiselib$shouldDropForNonLivingDisguise(world, effectPacket.entityId())) {
 					remove.run();
 					return;
 				}
-			} else if (packet instanceof DamageTiltS2CPacket damageTiltPacket
+			} else if (packet instanceof ClientboundHurtAnimationPacket damageTiltPacket
 					&& !((EntityDisguise) this.player).hasTrueSight()) {
 				if (this.disguiselib$shouldDropForNonLivingDisguise(world, damageTiltPacket.id())) {
 					remove.run();
 					return;
 				}
-			} else if (packet instanceof EntityAnimationS2CPacket animationPacket
+			} else if (packet instanceof ClientboundAnimatePacket animationPacket
 					&& !((EntityDisguise) this.player).hasTrueSight()) {
-				if (this.disguiselib$shouldDropForNonLivingDisguise(world, animationPacket.getEntityId())) {
+				if (this.disguiselib$shouldDropForNonLivingDisguise(world, animationPacket.getId())) {
 					remove.run();
 					return;
 				}
-			} else if (packet instanceof EntityVelocityUpdateS2CPacket velocityPacket) {
-				int id = velocityPacket.getEntityId();
+			} else if (packet instanceof ClientboundSetEntityMotionPacket velocityPacket) {
+				int id = velocityPacket.id();
 				if (id != this.player.getId()) {
-					Entity entity1 = world.getEntityById(id);
+					Entity entity1 = world.getEntity(id);
 					if (entity1 != null && ((EntityDisguise) entity1).isDisguised()) {
 						remove.run();
 					}
@@ -223,12 +236,12 @@ public abstract class ServerPlayNetworkHandlerMixin_Disguiser extends ServerComm
 	}
 
 	@Unique
-	private boolean disguiselib$hasSharedFlags(List<DataTracker.SerializedEntry<?>> trackedValues) {
+	private boolean disguiselib$hasSharedFlags(List<SynchedEntityData.DataValue<?>> trackedValues) {
 		if (trackedValues == null) {
 			return false;
 		}
 
-		for (DataTracker.SerializedEntry<?> entry : trackedValues) {
+		for (SynchedEntityData.DataValue<?> entry : trackedValues) {
 			if (entry.id() == 0) {
 				return true;
 			}
@@ -238,12 +251,12 @@ public abstract class ServerPlayNetworkHandlerMixin_Disguiser extends ServerComm
 	}
 
 	@Unique
-	private boolean disguiselib$shouldDropForNonLivingDisguise(World world, int entityId) {
+	private boolean disguiselib$shouldDropForNonLivingDisguise(Level world, int entityId) {
 		if (entityId == this.player.getId()) {
 			return false;
 		}
 
-		Entity entity = world.getEntityById(entityId);
+		Entity entity = world.getEntity(entityId);
 		if (entity == null) {
 			return false;
 		}
@@ -260,7 +273,7 @@ public abstract class ServerPlayNetworkHandlerMixin_Disguiser extends ServerComm
 	 */
 	@Unique
 	private void disguiselib$sendFakePacket(Entity entity, Runnable remove,
-			Consumer<Packet<ClientPlayPacketListener>> add) {
+			Consumer<Packet<ClientGamePacketListener>> add) {
 		EntityDisguise disguise = (EntityDisguise) entity;
 
 		// 자기 자신에게는 변장 패킷을 보내지 않음
@@ -280,31 +293,31 @@ public abstract class ServerPlayNetworkHandlerMixin_Disguiser extends ServerComm
 
 		try {
 			Packet<?> spawnPacket;
-			var entry = new EntityTrackerEntry((ServerWorld) entity.getEntityWorld(), entity, 1, true,
-					new EntityTrackerEntry.TrackerPacketSender() {
+			var entry = new ServerEntity((ServerLevel) entity.level(), entity, 1, true,
+					new ServerEntity.Synchronizer() {
 						@Override
-						public void sendToListeners(Packet<? super ClientPlayPacketListener> packet) {
+						public void sendToTrackingPlayers(Packet<? super ClientGamePacketListener> packet) {
 						}
 
 						@Override
-						public void sendToSelfAndListeners(Packet<? super ClientPlayPacketListener> packet) {
+						public void sendToTrackingPlayersAndSelf(Packet<? super ClientGamePacketListener> packet) {
 						}
 
 						@Override
-						public void sendToListenersIf(Packet<? super ClientPlayPacketListener> packet,
-								Predicate<ServerPlayerEntity> predicate) {
+						public void sendToTrackingPlayersFiltered(Packet<? super ClientGamePacketListener> packet,
+								Predicate<ServerPlayer> predicate) {
 						}
 					});
 
 			spawnPacket = FakePackets.universalSpawnPacket(entity, entry, true);
-			add.accept((Packet<ClientPlayPacketListener>) spawnPacket);
+			add.accept((Packet<ClientGamePacketListener>) spawnPacket);
 
 			// 변장 엔티티의 DataTracker 초기 값도 함께 전송 (NBT 태그 상태 반영)
-			var dataTracker = disguiseEntity.getDataTracker();
+			var dataTracker = disguiseEntity.getEntityData();
 			if (dataTracker != null) {
-				var allEntries = dataTracker.getChangedEntries();
+				var allEntries = dataTracker.getNonDefaultValues();
 				if (allEntries != null && !allEntries.isEmpty()) {
-					add.accept(new EntityTrackerUpdateS2CPacket(entity.getId(), allEntries));
+					add.accept(new ClientboundSetEntityDataPacket(entity.getId(), allEntries));
 				}
 			}
 
@@ -314,22 +327,22 @@ public abstract class ServerPlayNetworkHandlerMixin_Disguiser extends ServerComm
 		}
 	}
 
-	@Inject(method = "onPlayerMove(Lnet/minecraft/network/packet/c2s/play/PlayerMoveC2SPacket;)V", at = @At(value = "INVOKE", target = "Lnet/minecraft/network/NetworkThreadUtils;forceMainThread(Lnet/minecraft/network/packet/Packet;Lnet/minecraft/network/listener/PacketListener;Lnet/minecraft/server/world/ServerWorld;)V", shift = At.Shift.AFTER))
-	private void disguiselib$moveDisguiseEntity(PlayerMoveC2SPacket packet, CallbackInfo ci) {
+	@Inject(method = "handleMovePlayer(Lnet/minecraft/network/protocol/game/ServerboundMovePlayerPacket;)V", at = @At(value = "INVOKE", target = "Lnet/minecraft/network/protocol/PacketUtils;ensureRunningOnSameThread(Lnet/minecraft/network/protocol/Packet;Lnet/minecraft/network/PacketListener;Lnet/minecraft/server/level/ServerLevel;)V", shift = At.Shift.AFTER))
+	private void disguiselib$moveDisguiseEntity(ServerboundMovePlayerPacket packet, CallbackInfo ci) {
 		// 자기 자신에게는 변장 엔티티 위치 업데이트를 보내지 않음
 		// 다른 플레이어들에게만 전송됨
 	}
 
 	public void disguiselib$onClientBrand() {
 		if (!this.disguiselib$sentTeamPacket) {
-			TeamS2CPacket addTeamPacket = TeamS2CPacket.updateTeam(DISGUISE_TEAM, true);
+			ClientboundSetPlayerTeamPacket addTeamPacket = ClientboundSetPlayerTeamPacket.createAddOrModifyPacket(DISGUISE_TEAM, true);
 			this.disguiselib$sentTeamPacket = true;
-			this.sendPacket(addTeamPacket);
+			this.send(addTeamPacket);
 
 			if (((EntityDisguise) this.player).isDisguised()) {
-				TeamS2CPacket joinTeamPacket = TeamS2CPacket.changePlayerTeam(DISGUISE_TEAM,
-						this.player.getGameProfile().name(), TeamS2CPacket.Operation.ADD);
-				this.sendPacket(joinTeamPacket);
+				ClientboundSetPlayerTeamPacket joinTeamPacket = ClientboundSetPlayerTeamPacket.createPlayerPacket(DISGUISE_TEAM,
+						this.player.getGameProfile().name(), ClientboundSetPlayerTeamPacket.Action.ADD);
+				this.send(joinTeamPacket);
 			}
 		}
 	}

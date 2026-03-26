@@ -4,6 +4,8 @@ A server-side library that allows disguising entities as other ones.
 ~~Features built-in `/disguise` command as well.~~
 [`/disguise` command with some other features has been moved to a separate mod.](https://github.com/samolego/MobDisguises)
 
+이 브랜치는 Minecraft `26.1` 기준으로 맞춰져 있고, 로컬 빌드에는 Java `25`가 필요함. Gradle이 자동으로 찾지 못하면 `JAVA25_HOME` 환경 변수를 JDK 25 경로로 지정해서 빌드하면 됨.
+
 ## Command options
 
 - `/disguise option player-nameplate`: 플레이어 위장 이름표 옵션 현재 상태 확인

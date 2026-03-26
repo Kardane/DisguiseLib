@@ -1,6 +1,6 @@
 package xyz.nucleoid.disguiselib.impl;
 
-import net.minecraft.entity.EntityPose;
+import net.minecraft.world.entity.Pose;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -11,36 +11,36 @@ class PlayerDisguiseSneakPolicyTest {
 	@Test
 	void enabledPlayerKeepsSneakingAndCrouchingPose() {
 		PlayerDisguiseSneakPolicy.SneakState state = PlayerDisguiseSneakPolicy.resolve(true, true, true,
-				EntityPose.CROUCHING);
+				Pose.CROUCHING);
 
 		assertTrue(state.sneaking());
-		assertEquals(EntityPose.CROUCHING, state.pose());
+		assertEquals(Pose.CROUCHING, state.pose());
 	}
 
 	@Test
 	void enabledPlayerClearsSneakWhenStandingUp() {
 		PlayerDisguiseSneakPolicy.SneakState state = PlayerDisguiseSneakPolicy.resolve(true, true, false,
-				EntityPose.STANDING);
+				Pose.STANDING);
 
 		assertFalse(state.sneaking());
-		assertEquals(EntityPose.STANDING, state.pose());
+		assertEquals(Pose.STANDING, state.pose());
 	}
 
 	@Test
 	void disabledPlayerCrouchForcesStandingState() {
 		PlayerDisguiseSneakPolicy.SneakState state = PlayerDisguiseSneakPolicy.resolve(false, true, true,
-				EntityPose.CROUCHING);
+				Pose.CROUCHING);
 
 		assertFalse(state.sneaking());
-		assertEquals(EntityPose.STANDING, state.pose());
+		assertEquals(Pose.STANDING, state.pose());
 	}
 
 	@Test
 	void nonPlayerKeepsOriginalState() {
 		PlayerDisguiseSneakPolicy.SneakState state = PlayerDisguiseSneakPolicy.resolve(false, false, true,
-				EntityPose.CROUCHING);
+				Pose.CROUCHING);
 
 		assertTrue(state.sneaking());
-		assertEquals(EntityPose.CROUCHING, state.pose());
+		assertEquals(Pose.CROUCHING, state.pose());
 	}
 }

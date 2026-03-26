@@ -1,14 +1,14 @@
 package xyz.nucleoid.disguiselib.impl.mixin;
 
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.LivingEntity;
-import net.minecraft.entity.damage.DamageSource;
-import net.minecraft.network.packet.s2c.play.PlaySoundS2CPacket;
-import net.minecraft.registry.Registries;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.server.world.ServerWorld;
-import net.minecraft.sound.SoundCategory;
-import net.minecraft.sound.SoundEvent;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.network.protocol.game.ClientboundSoundPacket;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.sounds.SoundEvent;
+import net.minecraft.sounds.SoundSource;
+import net.minecraft.world.damagesource.DamageSource;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.LivingEntity;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.spongepowered.asm.mixin.Mixin;
@@ -34,15 +34,15 @@ public abstract class LivingEntityMixin_DisguiseSound {
 	protected abstract float getSoundVolume();
 
 	@Shadow
-	protected abstract float getSoundPitch();
+	protected abstract float getVoicePitch();
 
 	/**
 	 * Plays the disguise entity's hurt or death sound when a disguised entity takes
 	 * damage.
 	 * The sound is not played for the disguised entity itself.
 	 */
-	@Inject(method = "damage(Lnet/minecraft/server/world/ServerWorld;Lnet/minecraft/entity/damage/DamageSource;F)Z", at = @At("RETURN"))
-	private void playDisguiseSound(ServerWorld world, DamageSource source, float amount,
+	@Inject(method = "hurtServer(Lnet/minecraft/server/level/ServerLevel;Lnet/minecraft/world/damagesource/DamageSource;F)Z", at = @At("RETURN"))
+	private void playDisguiseSound(ServerLevel world, DamageSource source, float amount,
 			CallbackInfoReturnable<Boolean> cir) {
 		// Only proceed if damage was actually applied
 		if (!cir.getReturnValue()) {
@@ -103,8 +103,8 @@ public abstract class LivingEntityMixin_DisguiseSound {
 	}
 
 	@Unique
-	private void disguiselib$playDisguisedSound(ServerWorld world, LivingEntity self, SoundEvent sound) {
-		for (ServerPlayerEntity player : world.getPlayers()) {
+	private void disguiselib$playDisguisedSound(ServerLevel world, LivingEntity self, SoundEvent sound) {
+		for (ServerPlayer player : world.players()) {
 			// Skip the disguised entity
 			if (player.getId() == self.getId()) {
 				continue;
@@ -116,14 +116,14 @@ public abstract class LivingEntityMixin_DisguiseSound {
 			}
 
 			// Send sound packet to the player
-			player.networkHandler.sendPacket(new PlaySoundS2CPacket(
-					Registries.SOUND_EVENT.getEntry(sound),
-					SoundCategory.PLAYERS,
+			player.connection.send(new ClientboundSoundPacket(
+					BuiltInRegistries.SOUND_EVENT.wrapAsHolder(sound),
+					SoundSource.PLAYERS,
 					self.getX(),
 					self.getY(),
 					self.getZ(),
 					this.getSoundVolume(),
-					this.getSoundPitch(),
+					this.getVoicePitch(),
 					world.getRandom().nextLong()));
 		}
 	}

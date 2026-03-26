@@ -1,12 +1,12 @@
 package xyz.nucleoid.disguiselib.impl;
 
-import net.minecraft.entity.Entity;
 import org.jetbrains.annotations.ApiStatus;
 
 import java.util.Collections;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
+import net.minecraft.world.entity.Entity;
 
 /**
  * Tracks disguised entities and provides statistics.

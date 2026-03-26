@@ -1,6 +1,6 @@
 package xyz.nucleoid.disguiselib.impl;
 
-import net.minecraft.text.Text;
+import net.minecraft.network.chat.Component;
 import org.jetbrains.annotations.Nullable;
 
 public final class PlayerDisguiseNameplatePolicy {
@@ -8,7 +8,7 @@ public final class PlayerDisguiseNameplatePolicy {
 	}
 
 	public static NameplateState resolve(boolean enabled, boolean sourceIsPlayer, boolean disguiseTypeExcluded,
-			@Nullable Text playerDisplayName, @Nullable Text originalCustomName, boolean originalCustomNameVisible) {
+			@Nullable Component playerDisplayName, @Nullable Component originalCustomName, boolean originalCustomNameVisible) {
 		if (enabled && sourceIsPlayer && !disguiseTypeExcluded && playerDisplayName != null) {
 			return new NameplateState(playerDisplayName.copy(), true);
 		}
@@ -17,6 +17,6 @@ public final class PlayerDisguiseNameplatePolicy {
 				originalCustomNameVisible);
 	}
 
-	public record NameplateState(@Nullable Text customName, boolean visible) {
+	public record NameplateState(@Nullable Component customName, boolean visible) {
 	}
 }

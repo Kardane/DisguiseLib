@@ -2,13 +2,12 @@ package xyz.nucleoid.disguiselib.impl;
 
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.fabricmc.loader.api.FabricLoader;
-import net.minecraft.entity.EntityType;
-import net.minecraft.registry.Registries;
-import net.minecraft.scoreboard.AbstractTeam;
-import net.minecraft.scoreboard.Scoreboard;
-import net.minecraft.scoreboard.Team;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.server.MinecraftServer;
-
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.scores.PlayerTeam;
+import net.minecraft.world.scores.Scoreboard;
+import net.minecraft.world.scores.Team;
 import java.io.IOException;
 import java.util.List;
 
@@ -20,12 +19,12 @@ public class DisguiseLib {
 	 * Disables collisions with disguised entities.
 	 * (Client predictions are horrible sometimes ... )
 	 */
-	public static final Team DISGUISE_TEAM = new Team(new Scoreboard(), "");
+	public static final PlayerTeam DISGUISE_TEAM = new PlayerTeam(new Scoreboard(), "");
 	private static DisguiseLibConfig config = new DisguiseLibConfig();
 
 	public static void init() {
 		config = DisguiseLibConfig.load(FabricLoader.getInstance().getConfigDir());
-		DISGUISE_TEAM.setCollisionRule(AbstractTeam.CollisionRule.PUSH_OTHER_TEAMS);
+		DISGUISE_TEAM.setCollisionRule(Team.CollisionRule.PUSH_OTHER_TEAMS);
 		getLogger("DisguiseLib").info("DisguiseLib loaded.");
 
 		CommandRegistrationCallback.EVENT.register(DisguiseCommand::register);
@@ -40,7 +39,7 @@ public class DisguiseLib {
 	}
 
 	public static boolean isPlayerDisguiseNameplateExcluded(EntityType<?> entityType) {
-		String entityTypeId = Registries.ENTITY_TYPE.getId(entityType).toString();
+		String entityTypeId = BuiltInRegistries.ENTITY_TYPE.getKey(entityType).toString();
 		return config.getPlayerDisguiseNameplateExcludedEntities().stream().anyMatch(entityTypeId::equals);
 	}
 
@@ -81,6 +80,6 @@ public class DisguiseLib {
 	}
 
 	public static void setPlayerClientVisibility(boolean clientVisibility) {
-		DISGUISE_TEAM.setShowFriendlyInvisibles(clientVisibility);
+		DISGUISE_TEAM.setSeeFriendlyInvisibles(clientVisibility);
 	}
 }

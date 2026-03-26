@@ -1,9 +1,9 @@
 package xyz.nucleoid.disguiselib.impl;
 
-import net.minecraft.entity.Entity;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.server.world.ServerWorld;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.Entity;
 import xyz.nucleoid.disguiselib.api.DisguiseUtils;
 import xyz.nucleoid.disguiselib.api.EntityDisguise;
 import xyz.nucleoid.disguiselib.impl.mixin.accessor.ServerChunkLoadingManagerAccessor;
@@ -13,11 +13,11 @@ public final class DisguiseSync {
 	}
 
 	public static void refreshTracking(Entity entity) {
-		if (!(entity.getEntityWorld() instanceof ServerWorld serverWorld)) {
+		if (!(entity.level() instanceof ServerLevel serverWorld)) {
 			return;
 		}
 
-		var chunkLoadingManager = serverWorld.getChunkManager().chunkLoadingManager;
+		var chunkLoadingManager = serverWorld.getChunkSource().chunkMap;
 		if (chunkLoadingManager == null) {
 			return;
 		}
@@ -33,17 +33,17 @@ public final class DisguiseSync {
 		}
 
 		for (var listener : tracker.getListeners()) {
-			tracker.getEntry().stopTracking(listener.getPlayer());
-			tracker.getEntry().startTracking(listener.getPlayer());
+			tracker.getEntry().removePairing(listener.getPlayer());
+			tracker.getEntry().addPairing(listener.getPlayer());
 		}
 	}
 
 	public static void refreshDisguisedPlayers(MinecraftServer server) {
 		var disguisedIds = DisguiseTracker.getDisguisedEntityIds();
-		for (ServerWorld world : server.getWorlds()) {
+		for (ServerLevel world : server.getAllLevels()) {
 			for (int entityId : disguisedIds) {
-				Entity entity = world.getEntityById(entityId);
-				if (!(entity instanceof ServerPlayerEntity player)) {
+				Entity entity = world.getEntity(entityId);
+				if (!(entity instanceof ServerPlayer player)) {
 					continue;
 				}
 				if (!((EntityDisguise) player).isDisguised()) {

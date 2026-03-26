@@ -1,6 +1,6 @@
 package xyz.nucleoid.disguiselib.impl;
 
-import net.minecraft.text.Text;
+import net.minecraft.network.chat.Component;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -10,8 +10,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class PlayerDisguiseNameplatePolicyTest {
 	@Test
 	void enabledPlayerUsesDisplayNameAndShowsNameplate() {
-		Text displayName = Text.literal("ParkJ");
-		Text customName = Text.literal("hidden");
+		Component displayName = Component.literal("ParkJ");
+		Component customName = Component.literal("hidden");
 
 		PlayerDisguiseNameplatePolicy.NameplateState state = PlayerDisguiseNameplatePolicy.resolve(true, true,
 				false, displayName, customName, false);
@@ -22,10 +22,10 @@ class PlayerDisguiseNameplatePolicyTest {
 
 	@Test
 	void excludedDisguiseKeepsOriginalNameplateState() {
-		Text customName = Text.literal("display");
+		Component customName = Component.literal("display");
 
 		PlayerDisguiseNameplatePolicy.NameplateState state = PlayerDisguiseNameplatePolicy.resolve(true, true,
-				true, Text.literal("ParkJ"), customName, false);
+				true, Component.literal("ParkJ"), customName, false);
 
 		assertEquals("display", state.customName().getString());
 		assertEquals(false, state.visible());
@@ -33,10 +33,10 @@ class PlayerDisguiseNameplatePolicyTest {
 
 	@Test
 	void disabledOptionKeepsOriginalNameplateState() {
-		Text customName = Text.literal("custom");
+		Component customName = Component.literal("custom");
 
 		PlayerDisguiseNameplatePolicy.NameplateState state = PlayerDisguiseNameplatePolicy.resolve(false, true,
-				false, Text.literal("ParkJ"), customName, false);
+				false, Component.literal("ParkJ"), customName, false);
 
 		assertEquals("custom", state.customName().getString());
 		assertEquals(false, state.visible());
@@ -45,7 +45,7 @@ class PlayerDisguiseNameplatePolicyTest {
 	@Test
 	void missingOriginalNameKeepsNameNull() {
 		PlayerDisguiseNameplatePolicy.NameplateState state = PlayerDisguiseNameplatePolicy.resolve(false, false,
-				false, Text.literal("ParkJ"), null, false);
+				false, Component.literal("ParkJ"), null, false);
 
 		assertNull(state.customName());
 		assertEquals(false, state.visible());
