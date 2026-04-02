@@ -3,10 +3,14 @@ package xyz.nucleoid.disguiselib.impl.mixin;
 import com.mojang.datafixers.util.Pair;
 import net.minecraft.entity.*;
 import net.minecraft.entity.data.DataTracker;
+import net.minecraft.entity.mob.GhastEntity;
 import net.minecraft.entity.mob.MobEntity;
+import net.minecraft.entity.mob.SpellcastingIllagerEntity;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.entity.player.PlayerPosition;
+import net.minecraft.item.BowItem;
 import net.minecraft.item.ItemStack;
+import net.minecraft.item.Items;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.network.packet.s2c.play.*;
 import net.minecraft.registry.Registries;
@@ -34,10 +38,14 @@ import xyz.nucleoid.disguiselib.api.EntityDisguise;
 import xyz.nucleoid.disguiselib.impl.DisguiseLib;
 import xyz.nucleoid.disguiselib.impl.DisguiseSync;
 import xyz.nucleoid.disguiselib.impl.DisguiseTracker;
+import xyz.nucleoid.disguiselib.impl.PlayerDisguiseAnimationController;
+import xyz.nucleoid.disguiselib.impl.PlayerDisguiseAnimationSupport;
+import xyz.nucleoid.disguiselib.impl.PlayerDisguiseAnimationType;
 import xyz.nucleoid.disguiselib.impl.PlayerDisguiseNameplatePolicy;
 import xyz.nucleoid.disguiselib.impl.PlayerDisguiseSneakPolicy;
 import xyz.nucleoid.disguiselib.impl.mixin.accessor.EntityTrackerEntryAccessor;
 import xyz.nucleoid.disguiselib.impl.mixin.accessor.ServerChunkLoadingManagerAccessor;
+import xyz.nucleoid.disguiselib.impl.mixin.accessor.SpellcastingIllagerEntityAccessor;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -143,6 +151,7 @@ public abstract class EntityMixin_Disguise implements EntityDisguise, DisguiseUt
 			return;
 		}
 
+		PlayerDisguiseAnimationController.clear(this.disguiselib$entity);
 		this.disguiselib$disguiseType = entityType;
 
 		if (this.disguiselib$disguiseEntity != null && this.disguiselib$entity instanceof ServerPlayerEntity) {
@@ -206,6 +215,7 @@ public abstract class EntityMixin_Disguise implements EntityDisguise, DisguiseUt
 			return;
 		}
 
+		PlayerDisguiseAnimationController.clear(this.disguiselib$entity);
 		if (this.disguiselib$disguiseEntity != null && this.disguiselib$entity instanceof ServerPlayerEntity) {
 			this.disguiselib$hideSelfView();
 		}
@@ -347,10 +357,57 @@ public abstract class EntityMixin_Disguise implements EntityDisguise, DisguiseUt
 		this.disguiselib$disguiseEntity.setOnFire(this.isOnFire());
 		this.disguiselib$disguiseEntity.setSilent(this.isSilent());
 		this.disguiselib$disguiseEntity.setPose(sneakState.pose());
+		this.disguiselib$applyMobAnimations();
 
 		if (this.disguiselib$disguiseEntity instanceof LivingEntity disguise
 				&& ((Object) this) instanceof LivingEntity self) {
 			disguise.getAttributes().setFrom(self.getAttributes());
+		}
+	}
+
+	@Unique
+	private void disguiselib$applyMobAnimations() {
+		if (!(this.disguiselib$disguiseEntity instanceof MobEntity mobEntity)) {
+			return;
+		}
+
+		if (!(this.disguiselib$entity instanceof PlayerEntity player)) {
+			return;
+		}
+
+		if (mobEntity instanceof SpellcastingIllagerEntity spellcaster) {
+			spellcaster.getDataTracker().set(SpellcastingIllagerEntityAccessor.getSpell(), (byte) 0);
+		}
+
+		boolean skeletonBowAiming = PlayerDisguiseAnimationSupport.isSkeletonBowAiming(
+				Registries.ENTITY_TYPE.getId(this.disguiselib$disguiseEntity.getType()).toString(),
+				true,
+				player.isUsingItem(),
+				player.getActiveItem().getItem() instanceof BowItem,
+				player.getMainHandStack().isOf(Items.BOW));
+
+		if (PlayerDisguiseAnimationController.isVindicatorAttacking(this.disguiselib$entity)) {
+			mobEntity.setAttacking(true);
+		} else {
+			mobEntity.setAttacking(skeletonBowAiming);
+		}
+
+		if (mobEntity instanceof GhastEntity ghastEntity) {
+			ghastEntity.setShooting(
+					PlayerDisguiseAnimationController.isActive(this.disguiselib$entity,
+							PlayerDisguiseAnimationType.GHAST_CHARGE));
+		}
+
+		if (mobEntity instanceof SpellcastingIllagerEntity spellcaster) {
+			if (PlayerDisguiseAnimationController.isActive(this.disguiselib$entity,
+					PlayerDisguiseAnimationType.EVOKER_CAST)) {
+				spellcaster.getDataTracker().set(SpellcastingIllagerEntityAccessor.getSpell(),
+						PlayerDisguiseAnimationSupport.getSpellId(PlayerDisguiseAnimationType.EVOKER_CAST));
+			} else if (PlayerDisguiseAnimationController.isActive(this.disguiselib$entity,
+					PlayerDisguiseAnimationType.ILLUSIONER_CAST)) {
+				spellcaster.getDataTracker().set(SpellcastingIllagerEntityAccessor.getSpell(),
+						PlayerDisguiseAnimationSupport.getSpellId(PlayerDisguiseAnimationType.ILLUSIONER_CAST));
+			}
 		}
 	}
 
@@ -386,6 +443,7 @@ public abstract class EntityMixin_Disguise implements EntityDisguise, DisguiseUt
 	@Inject(method = "discard()V", at = @At("TAIL"))
 	private void onRemove(CallbackInfo ci) {
 		if (this.isDisguised()) {
+			PlayerDisguiseAnimationController.clear(this.disguiselib$entity);
 			DisguiseTracker.onRemoveDisguise(this.disguiselib$entity);
 		}
 	}

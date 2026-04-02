@@ -6,8 +6,12 @@
 	"mixins": [
 		"EntityMixin_Disguise",
 		"LivingEntityMixin_DisguiseSound",
+		"PersistentProjectileEntityMixin_DisguiseProjectileHit",
+		"ProjectileUtilMixin_DisguiseProjectileHit",
 		"ServerCommonNetworkHandlerMixin_Disguiser",
 		"ServerPlayNetworkHandlerMixin_Disguiser",
+		"ServerPlayerEntityMixin_DisguiseAnimation",
+		"TridentEntityMixin_DisguiseProjectileHit",
 		"accessor.EntitiesDestroyS2CPacketAccessor",
 		"accessor.EntityAccessor",
 		"accessor.EntityAttributesS2CPacketAccessor",
@@ -16,9 +20,11 @@
 		"accessor.EntityTrackerEntryAccessor",
 		"accessor.EntityTrackerUpdateS2CPacketAccessor",
 		"accessor.LivingEntityAccessor",
+		"accessor.PersistentProjectileEntityAccessor",
 		"accessor.PlayerEntityAccessor",
 		"accessor.PlayerListS2CPacketAccessor",
-		"accessor.ServerChunkLoadingManagerAccessor"
+		"accessor.ServerChunkLoadingManagerAccessor",
+		"accessor.SpellcastingIllagerEntityAccessor"
 	],
 	"injectors": {
 		"defaultRequire": 1

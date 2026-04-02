@@ -1,6 +1,7 @@
 package xyz.nucleoid.disguiselib.impl;
 
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.entity.EntityType;
 import net.minecraft.registry.Registries;
@@ -29,6 +30,7 @@ public class DisguiseLib {
 		getLogger("DisguiseLib").info("DisguiseLib loaded.");
 
 		CommandRegistrationCallback.EVENT.register(DisguiseCommand::register);
+		ServerTickEvents.END_SERVER_TICK.register(PlayerDisguiseAnimationController::tick);
 	}
 
 	public static boolean isPlayerDisguiseNameplateEnabled() {
