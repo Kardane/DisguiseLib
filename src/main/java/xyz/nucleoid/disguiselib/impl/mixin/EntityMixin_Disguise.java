@@ -6,6 +6,7 @@ import net.minecraft.entity.data.DataTracker;
 import net.minecraft.entity.mob.GhastEntity;
 import net.minecraft.entity.mob.MobEntity;
 import net.minecraft.entity.mob.SpellcastingIllagerEntity;
+import net.minecraft.entity.passive.IronGolemEntity;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.entity.player.PlayerPosition;
 import net.minecraft.item.BowItem;
@@ -38,6 +39,7 @@ import xyz.nucleoid.disguiselib.api.EntityDisguise;
 import xyz.nucleoid.disguiselib.impl.DisguiseLib;
 import xyz.nucleoid.disguiselib.impl.DisguiseSync;
 import xyz.nucleoid.disguiselib.impl.DisguiseTracker;
+import xyz.nucleoid.disguiselib.impl.IronGolemDisguiseHealthPolicy;
 import xyz.nucleoid.disguiselib.impl.PlayerDisguiseAnimationController;
 import xyz.nucleoid.disguiselib.impl.PlayerDisguiseAnimationSupport;
 import xyz.nucleoid.disguiselib.impl.PlayerDisguiseAnimationType;
@@ -361,6 +363,12 @@ public abstract class EntityMixin_Disguise implements EntityDisguise, DisguiseUt
 
 		if (this.disguiselib$disguiseEntity instanceof LivingEntity disguise
 				&& ((Object) this) instanceof LivingEntity self) {
+			if (disguise instanceof IronGolemEntity) {
+				disguise.setHealth(IronGolemDisguiseHealthPolicy.resolve(
+						self.getHealth(),
+						self.getMaxHealth(),
+						disguise.getMaxHealth()));
+			}
 			disguise.getAttributes().setFrom(self.getAttributes());
 		}
 	}

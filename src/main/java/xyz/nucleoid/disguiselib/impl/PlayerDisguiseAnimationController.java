@@ -78,6 +78,6 @@ public final class PlayerDisguiseAnimationController {
 
 	private static void refresh(ServerPlayerEntity player) {
 		((DisguiseUtils) player).updateTrackedData();
-		DisguiseSync.refreshTracking(player);
+		DisguiseSync.refreshAnimationMetadata(player);
 	}
 }
