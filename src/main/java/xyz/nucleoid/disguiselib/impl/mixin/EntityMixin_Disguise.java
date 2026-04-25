@@ -22,6 +22,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.storage.ValueInput;
 import net.minecraft.world.level.storage.ValueOutput;
+import net.minecraft.world.scores.PlayerTeam;
 import org.jetbrains.annotations.Nullable;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -33,6 +34,7 @@ import xyz.nucleoid.disguiselib.api.DisguiseEvents;
 import xyz.nucleoid.disguiselib.api.DisguiseUtils;
 import xyz.nucleoid.disguiselib.api.EntityDisguise;
 import xyz.nucleoid.disguiselib.impl.DisguiseLib;
+import xyz.nucleoid.disguiselib.impl.DisguiseSwimmingPolicy;
 import xyz.nucleoid.disguiselib.impl.DisguiseSync;
 import xyz.nucleoid.disguiselib.impl.DisguiseTracker;
 import xyz.nucleoid.disguiselib.impl.PlayerDisguiseNameplatePolicy;
@@ -42,8 +44,6 @@ import xyz.nucleoid.disguiselib.impl.mixin.accessor.ServerChunkLoadingManagerAcc
 
 import java.util.*;
 import java.util.stream.Collectors;
-
-import static xyz.nucleoid.disguiselib.impl.DisguiseLib.DISGUISE_TEAM;
 
 @Mixin(Entity.class)
 public abstract class EntityMixin_Disguise implements EntityDisguise, DisguiseUtils {
@@ -214,6 +214,7 @@ public abstract class EntityMixin_Disguise implements EntityDisguise, DisguiseUt
 
 		// 트래커에서 제거
 		DisguiseTracker.onRemoveDisguise(this.disguiselib$entity);
+		this.disguiselib$removeTeamEntry();
 
 		// Setting as not-disguised
 		this.disguiselib$disguiseEntity = null;
@@ -294,9 +295,24 @@ public abstract class EntityMixin_Disguise implements EntityDisguise, DisguiseUt
 		}
 
 		player.connection.send(new ClientboundRemoveEntitiesPacket(this.disguiselib$disguiseEntity.getId()));
-		ClientboundSetPlayerTeamPacket removeTeamPacket = ClientboundSetPlayerTeamPacket.createPlayerPacket(DISGUISE_TEAM, player.getGameProfile().name(),
-				ClientboundSetPlayerTeamPacket.Action.REMOVE);
-		player.connection.send(removeTeamPacket);
+	}
+
+	@Unique
+	private void disguiselib$removeTeamEntry() {
+		if (!(this.disguiselib$entity instanceof Player)) {
+			return;
+		}
+		if (!(this.disguiselib$entity.getTeam() instanceof PlayerTeam team)) {
+			return;
+		}
+		if (this.level.getServer() == null) {
+			return;
+		}
+
+		this.level.getServer().getPlayerList().broadcastAll(ClientboundSetPlayerTeamPacket.createPlayerPacket(
+				team,
+				this.disguiselib$entity.getStringUUID(),
+				ClientboundSetPlayerTeamPacket.Action.REMOVE));
 	}
 
 	/**
@@ -343,12 +359,16 @@ public abstract class EntityMixin_Disguise implements EntityDisguise, DisguiseUt
 				this.disguiselib$entity instanceof Player,
 				this.isShiftKeyDown(),
 				this.getPose());
+		var swimState = DisguiseSwimmingPolicy.resolve(
+				this.isSwimming(),
+				sneakState.pose(),
+				this.disguiselib$disguiseEntity.getType() == EntityType.DROWNED);
 		this.disguiselib$disguiseEntity.setShiftKeyDown(sneakState.sneaking());
-		this.disguiselib$disguiseEntity.setSwimming(this.isSwimming());
+		this.disguiselib$disguiseEntity.setSwimming(swimState.swimming());
 		this.disguiselib$disguiseEntity.setGlowingTag(this.isCurrentlyGlowing());
 		this.disguiselib$disguiseEntity.setSharedFlagOnFire(this.isOnFire());
 		this.disguiselib$disguiseEntity.setSilent(this.isSilent());
-		this.disguiselib$disguiseEntity.setPose(sneakState.pose());
+		this.disguiselib$disguiseEntity.setPose(swimState.pose());
 
 		if (this.disguiselib$disguiseEntity instanceof LivingEntity disguise
 				&& ((Object) this) instanceof LivingEntity self) {
@@ -396,6 +416,7 @@ public abstract class EntityMixin_Disguise implements EntityDisguise, DisguiseUt
 	private void onRemove(CallbackInfo ci) {
 		if (this.isDisguised()) {
 			DisguiseTracker.onRemoveDisguise(this.disguiselib$entity);
+			this.disguiselib$removeTeamEntry();
 		}
 	}
 

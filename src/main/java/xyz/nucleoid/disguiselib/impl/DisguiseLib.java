@@ -5,9 +5,6 @@ import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.scores.PlayerTeam;
-import net.minecraft.world.scores.Scoreboard;
-import net.minecraft.world.scores.Team;
 import java.io.IOException;
 import java.util.List;
 
@@ -15,16 +12,10 @@ import static org.apache.logging.log4j.LogManager.getLogger;
 
 public class DisguiseLib {
 
-	/**
-	 * Disables collisions with disguised entities.
-	 * (Client predictions are horrible sometimes ... )
-	 */
-	public static final PlayerTeam DISGUISE_TEAM = new PlayerTeam(new Scoreboard(), "");
 	private static DisguiseLibConfig config = new DisguiseLibConfig();
 
 	public static void init() {
 		config = DisguiseLibConfig.load(FabricLoader.getInstance().getConfigDir());
-		DISGUISE_TEAM.setCollisionRule(Team.CollisionRule.PUSH_OTHER_TEAMS);
 		getLogger("DisguiseLib").info("DisguiseLib loaded.");
 
 		CommandRegistrationCallback.EVENT.register(DisguiseCommand::register);
@@ -77,9 +68,5 @@ public class DisguiseLib {
 
 		DisguiseSync.refreshDisguisedPlayers(server);
 		return true;
-	}
-
-	public static void setPlayerClientVisibility(boolean clientVisibility) {
-		DISGUISE_TEAM.setSeeFriendlyInvisibles(clientVisibility);
 	}
 }

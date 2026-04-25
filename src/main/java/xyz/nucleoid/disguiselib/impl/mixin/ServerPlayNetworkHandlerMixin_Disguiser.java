@@ -25,6 +25,7 @@ import net.minecraft.server.network.*;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.scores.PlayerTeam;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
@@ -42,16 +43,11 @@ import java.util.*;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 
-import static xyz.nucleoid.disguiselib.impl.DisguiseLib.DISGUISE_TEAM;
-
 @Mixin(ServerGamePacketListenerImpl.class)
 public abstract class ServerPlayNetworkHandlerMixin_Disguiser extends ServerCommonPacketListenerImpl
 		implements ExtendedHandler {
 	@Shadow
 	public ServerPlayer player;
-
-	@Unique
-	private boolean disguiselib$sentTeamPacket;
 
 	public ServerPlayNetworkHandlerMixin_Disguiser(MinecraftServer server, Connection connection,
 			CommonListenerCookie clientData) {
@@ -228,6 +224,9 @@ public abstract class ServerPlayNetworkHandlerMixin_Disguiser extends ServerComm
 						remove.run();
 					}
 				}
+			} else if (packet instanceof ClientboundSetPlayerTeamPacket teamPacket
+					&& !((EntityDisguise) this.player).hasTrueSight()) {
+				this.disguiselib$trackTeamPacket(teamPacket, add);
 			}
 		} finally {
 			long duration = System.nanoTime() - startTime;
@@ -311,6 +310,7 @@ public abstract class ServerPlayNetworkHandlerMixin_Disguiser extends ServerComm
 
 			spawnPacket = FakePackets.universalSpawnPacket(entity, entry, true);
 			add.accept((Packet<ClientGamePacketListener>) spawnPacket);
+			this.disguiselib$addTeamEntry(entity, add);
 
 			// 변장 엔티티의 DataTracker 초기 값도 함께 전송 (NBT 태그 상태 반영)
 			var dataTracker = disguiseEntity.getEntityData();
@@ -333,17 +333,51 @@ public abstract class ServerPlayNetworkHandlerMixin_Disguiser extends ServerComm
 		// 다른 플레이어들에게만 전송됨
 	}
 
-	public void disguiselib$onClientBrand() {
-		if (!this.disguiselib$sentTeamPacket) {
-			ClientboundSetPlayerTeamPacket addTeamPacket = ClientboundSetPlayerTeamPacket.createAddOrModifyPacket(DISGUISE_TEAM, true);
-			this.disguiselib$sentTeamPacket = true;
-			this.send(addTeamPacket);
+	@Unique
+	private void disguiselib$addTeamEntry(Entity entity, Consumer<Packet<ClientGamePacketListener>> add) {
+		if (!(entity instanceof Player)) {
+			return;
+		}
+		if (!(entity.getTeam() instanceof PlayerTeam team)) {
+			return;
+		}
 
-			if (((EntityDisguise) this.player).isDisguised()) {
-				ClientboundSetPlayerTeamPacket joinTeamPacket = ClientboundSetPlayerTeamPacket.createPlayerPacket(DISGUISE_TEAM,
-						this.player.getGameProfile().name(), ClientboundSetPlayerTeamPacket.Action.ADD);
-				this.send(joinTeamPacket);
+		add.accept(ClientboundSetPlayerTeamPacket.createPlayerPacket(
+				team,
+				entity.getStringUUID(),
+				ClientboundSetPlayerTeamPacket.Action.ADD));
+	}
+
+	@Unique
+	private void disguiselib$trackTeamPacket(ClientboundSetPlayerTeamPacket packet,
+			Consumer<Packet<ClientGamePacketListener>> add) {
+		ClientboundSetPlayerTeamPacket.Action action = packet.getPlayerAction();
+		if (action != ClientboundSetPlayerTeamPacket.Action.ADD
+				&& action != ClientboundSetPlayerTeamPacket.Action.REMOVE) {
+			return;
+		}
+
+		PlayerTeam team = this.server.getScoreboard().getPlayerTeam(packet.getName());
+		if (team == null) {
+			return;
+		}
+
+		Collection<String> entries = packet.getPlayers();
+		for (ServerPlayer tracked : this.server.getPlayerList().getPlayers()) {
+			if (tracked.getId() == this.player.getId()) {
+				continue;
 			}
+			if (!((EntityDisguise) tracked).isDisguised()) {
+				continue;
+			}
+			if (!entries.contains(tracked.getScoreboardName())) {
+				continue;
+			}
+
+			add.accept(ClientboundSetPlayerTeamPacket.createPlayerPacket(
+					team,
+					tracked.getStringUUID(),
+					action));
 		}
 	}
 }

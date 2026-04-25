@@ -3,8 +3,6 @@ package xyz.nucleoid.disguiselib.impl.mixin;
 import com.mojang.authlib.GameProfile;
 import io.netty.channel.ChannelFutureListener;
 import net.minecraft.network.protocol.Packet;
-import net.minecraft.network.protocol.common.ServerboundCustomPayloadPacket;
-import net.minecraft.network.protocol.common.custom.BrandPayload;
 import net.minecraft.network.protocol.game.ClientGamePacketListener;
 import net.minecraft.network.protocol.game.ClientboundBundlePacket;
 import net.minecraft.server.network.ServerCommonPacketListenerImpl;
@@ -23,8 +21,6 @@ import xyz.nucleoid.disguiselib.impl.packets.FakePackets;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
-
-import static xyz.nucleoid.disguiselib.impl.DisguiseLib.DISGUISE_TEAM;
 
 @Mixin(ServerCommonPacketListenerImpl.class)
 public abstract class ServerCommonNetworkHandlerMixin_Disguiser {
@@ -85,10 +81,4 @@ public abstract class ServerCommonNetworkHandlerMixin_Disguiser {
         }
     }
 
-    @Inject(method = "handleCustomPayload", at = @At("TAIL"))
-    private void onClientBrand(ServerboundCustomPayloadPacket packet, CallbackInfo ci) {
-        if (packet.payload() instanceof BrandPayload && this instanceof ExtendedHandler self) {
-            self.disguiselib$onClientBrand();
-        }
-    }
 }
