@@ -55,7 +55,45 @@ public class DisguiseCommand {
 								.then(literal("illusioner-cast")
 										.then(argument("ticks", integer(1))
 												.executes(ctx -> animateDisguise(ctx,
-														PlayerDisguiseAnimationType.ILLUSIONER_CAST)))))
+														PlayerDisguiseAnimationType.ILLUSIONER_CAST))))
+								.then(literal("armadillo-roll")
+										.then(argument("ticks", integer(1))
+												.executes(ctx -> animateDisguise(ctx,
+														PlayerDisguiseAnimationType.ARMADILLO_ROLL))))
+								.then(literal("polar-bear-attack")
+										.then(argument("ticks", integer(1))
+												.executes(ctx -> animateDisguise(ctx,
+														PlayerDisguiseAnimationType.POLAR_BEAR_ATTACK))))
+								.then(literal("bee-attack")
+										.then(argument("ticks", integer(1))
+												.executes(ctx -> animateDisguise(ctx,
+														PlayerDisguiseAnimationType.BEE_ATTACK))))
+								.then(literal("fox-pounce")
+										.then(argument("ticks", integer(1))
+												.executes(ctx -> animateDisguise(ctx,
+														PlayerDisguiseAnimationType.FOX_POUNCE))))
+								.then(literal("wolf-angry")
+										.then(argument("ticks", integer(1))
+												.executes(ctx -> animateDisguise(ctx,
+														PlayerDisguiseAnimationType.WOLF_ANGRY))))
+								.then(literal("frog-eat")
+										.then(argument("ticks", integer(1))
+												.then(argument("animationTarget", EntityArgumentType.entity())
+														.executes(ctx -> animateDisguise(ctx,
+																PlayerDisguiseAnimationType.FROG_EAT,
+																EntityArgumentType.getEntity(ctx, "animationTarget"))))))
+								.then(literal("goat-ram")
+										.then(argument("ticks", integer(1))
+												.executes(ctx -> animateDisguise(ctx,
+														PlayerDisguiseAnimationType.GOAT_RAM))))
+								.then(literal("ravager-attack")
+										.then(argument("ticks", integer(1))
+												.executes(ctx -> animateDisguise(ctx,
+														PlayerDisguiseAnimationType.RAVAGER_ATTACK))))
+								.then(literal("enderman-angry")
+										.then(argument("ticks", integer(1))
+												.executes(ctx -> animateDisguise(ctx,
+														PlayerDisguiseAnimationType.ENDERMAN_ANGRY)))))
 						.then(literal("as")
 								.then(argument("disguise",
 										new RegistryEntryReferenceArgumentType<>(commandRegistryAccess,
@@ -189,6 +227,12 @@ public class DisguiseCommand {
 
 	private static int animateDisguise(CommandContext<ServerCommandSource> ctx, PlayerDisguiseAnimationType animationType)
 			throws CommandSyntaxException {
+		return animateDisguise(ctx, animationType, null);
+	}
+
+	private static int animateDisguise(CommandContext<ServerCommandSource> ctx, PlayerDisguiseAnimationType animationType,
+			Entity animationTarget)
+			throws CommandSyntaxException {
 		Collection<? extends Entity> entities = EntityArgumentType.getEntities(ctx, "target");
 		ServerCommandSource src = ctx.getSource();
 		int ticks = IntegerArgumentType.getInteger(ctx, "ticks");
@@ -210,7 +254,7 @@ public class DisguiseCommand {
 				continue;
 			}
 
-			PlayerDisguiseAnimationController.start(player, animationType, ticks);
+			PlayerDisguiseAnimationController.start(player, animationType, ticks, animationTarget);
 			successCount.incrementAndGet();
 		}
 
@@ -240,6 +284,15 @@ public class DisguiseCommand {
 			case GHAST_CHARGE -> "가스트 charging";
 			case EVOKER_CAST -> "소환사 주문 시전";
 			case ILLUSIONER_CAST -> "환술사 주문 시전";
+			case ARMADILLO_ROLL -> "아르마딜로 웅크리기";
+			case POLAR_BEAR_ATTACK -> "북극곰 공격";
+			case BEE_ATTACK -> "꿀벌 공격";
+			case FOX_POUNCE -> "여우 도약 공격";
+			case WOLF_ANGRY -> "늑대 화난 얼굴";
+			case FROG_EAT -> "개구리 잡아먹기";
+			case GOAT_RAM -> "염소 돌진";
+			case RAVAGER_ATTACK -> "파괴수 공격";
+			case ENDERMAN_ANGRY -> "엔더맨 화난 상태";
 		};
 	}
 }

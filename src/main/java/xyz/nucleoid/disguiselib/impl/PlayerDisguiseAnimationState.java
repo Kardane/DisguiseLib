@@ -11,12 +11,21 @@ final class PlayerDisguiseAnimationState {
 	private final Map<UUID, Integer> vindicatorAttackTicks = new HashMap<>();
 
 	void start(UUID playerId, PlayerDisguiseAnimationType type, int ticks) {
-		this.manualAnimations.put(playerId, new TimedAnimation(type, ticks));
+		this.start(playerId, type, ticks, -1);
+	}
+
+	void start(UUID playerId, PlayerDisguiseAnimationType type, int ticks, int targetEntityId) {
+		this.manualAnimations.put(playerId, new TimedAnimation(type, ticks, targetEntityId));
 	}
 
 	boolean isActive(UUID playerId, PlayerDisguiseAnimationType type) {
 		TimedAnimation animation = this.manualAnimations.get(playerId);
 		return animation != null && animation.type() == type;
+	}
+
+	int getTargetEntityId(UUID playerId) {
+		TimedAnimation animation = this.manualAnimations.get(playerId);
+		return animation != null ? animation.targetEntityId() : -1;
 	}
 
 	void startVindicatorAttack(UUID playerId, int ticks) {
@@ -33,36 +42,36 @@ final class PlayerDisguiseAnimationState {
 		this.vindicatorAttackTicks.remove(playerId);
 	}
 
-	Set<UUID> tick() {
-		Set<UUID> refreshTargets = new HashSet<>();
+	Set<ExpiredAnimation> tick() {
+		Set<ExpiredAnimation> refreshTargets = new HashSet<>();
 		this.tickManualAnimations(refreshTargets);
 		this.tickVindicatorAttacks(refreshTargets);
 		return refreshTargets;
 	}
 
-	private void tickManualAnimations(Set<UUID> refreshTargets) {
+	private void tickManualAnimations(Set<ExpiredAnimation> refreshTargets) {
 		var iterator = this.manualAnimations.entrySet().iterator();
 		while (iterator.hasNext()) {
 			var entry = iterator.next();
 			int remainingTicks = entry.getValue().remainingTicks() - 1;
 			if (remainingTicks <= 0) {
 				iterator.remove();
-				refreshTargets.add(entry.getKey());
+				refreshTargets.add(new ExpiredAnimation(entry.getKey(), entry.getValue().type()));
 				continue;
 			}
 
-			entry.setValue(new TimedAnimation(entry.getValue().type(), remainingTicks));
+			entry.setValue(new TimedAnimation(entry.getValue().type(), remainingTicks, entry.getValue().targetEntityId()));
 		}
 	}
 
-	private void tickVindicatorAttacks(Set<UUID> refreshTargets) {
+	private void tickVindicatorAttacks(Set<ExpiredAnimation> refreshTargets) {
 		var iterator = this.vindicatorAttackTicks.entrySet().iterator();
 		while (iterator.hasNext()) {
 			var entry = iterator.next();
 			int remainingTicks = entry.getValue() - 1;
 			if (remainingTicks <= 0) {
 				iterator.remove();
-				refreshTargets.add(entry.getKey());
+				refreshTargets.add(new ExpiredAnimation(entry.getKey(), null));
 				continue;
 			}
 
@@ -70,6 +79,9 @@ final class PlayerDisguiseAnimationState {
 		}
 	}
 
-	private record TimedAnimation(PlayerDisguiseAnimationType type, int remainingTicks) {
+	record ExpiredAnimation(UUID playerId, PlayerDisguiseAnimationType type) {
+	}
+
+	private record TimedAnimation(PlayerDisguiseAnimationType type, int remainingTicks, int targetEntityId) {
 	}
 }

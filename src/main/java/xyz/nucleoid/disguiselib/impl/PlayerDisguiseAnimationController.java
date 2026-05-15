@@ -4,6 +4,7 @@ import net.minecraft.entity.Entity;
 import net.minecraft.registry.Registries;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayerEntity;
+import org.jetbrains.annotations.Nullable;
 import xyz.nucleoid.disguiselib.api.DisguiseUtils;
 import xyz.nucleoid.disguiselib.api.EntityDisguise;
 
@@ -16,6 +17,10 @@ public final class PlayerDisguiseAnimationController {
 	}
 
 	public static void start(Entity entity, PlayerDisguiseAnimationType type, int ticks) {
+		start(entity, type, ticks, null);
+	}
+
+	public static void start(Entity entity, PlayerDisguiseAnimationType type, int ticks, @Nullable Entity animationTarget) {
 		if (!(entity instanceof ServerPlayerEntity player)) {
 			return;
 		}
@@ -28,7 +33,8 @@ public final class PlayerDisguiseAnimationController {
 			return;
 		}
 
-		STATE.start(player.getUuid(), type, ticks);
+		STATE.start(player.getUuid(), type, ticks, animationTarget != null ? animationTarget.getId() : -1);
+		sendStatus(player, type, true);
 		refresh(player);
 	}
 
@@ -38,6 +44,14 @@ public final class PlayerDisguiseAnimationController {
 		}
 
 		return STATE.isActive(player.getUuid(), type);
+	}
+
+	public static int getTargetEntityId(Entity entity) {
+		if (!(entity instanceof ServerPlayerEntity player)) {
+			return -1;
+		}
+
+		return STATE.getTargetEntityId(player.getUuid());
 	}
 
 	public static void clear(Entity entity) {
@@ -66,13 +80,22 @@ public final class PlayerDisguiseAnimationController {
 	}
 
 	public static void tick(MinecraftServer server) {
-		for (UUID playerId : STATE.tick()) {
-			ServerPlayerEntity player = server.getPlayerManager().getPlayer(playerId);
+		for (PlayerDisguiseAnimationState.ExpiredAnimation expired : STATE.tick()) {
+			ServerPlayerEntity player = server.getPlayerManager().getPlayer(expired.playerId());
 			if (player == null || !((EntityDisguise) player).isDisguised()) {
 				continue;
 			}
 
+			sendStatus(player, expired.type(), false);
 			refresh(player);
+		}
+	}
+
+	private static void sendStatus(ServerPlayerEntity player, @Nullable PlayerDisguiseAnimationType type, boolean starting) {
+		if (type == PlayerDisguiseAnimationType.GOAT_RAM) {
+			DisguiseSync.sendDisguiseStatus(player, starting ? (byte) 58 : (byte) 59);
+		} else if (starting && type == PlayerDisguiseAnimationType.RAVAGER_ATTACK) {
+			DisguiseSync.sendDisguiseStatus(player, (byte) 4);
 		}
 	}
 

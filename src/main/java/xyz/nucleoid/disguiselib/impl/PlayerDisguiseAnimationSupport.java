@@ -22,6 +22,15 @@ public final class PlayerDisguiseAnimationSupport {
 			case GHAST_CHARGE -> disguiseTypeId.equals("minecraft:ghast");
 			case EVOKER_CAST -> disguiseTypeId.equals("minecraft:evoker");
 			case ILLUSIONER_CAST -> disguiseTypeId.equals("minecraft:illusioner");
+			case ARMADILLO_ROLL -> disguiseTypeId.equals("minecraft:armadillo");
+			case POLAR_BEAR_ATTACK -> disguiseTypeId.equals("minecraft:polar_bear");
+			case BEE_ATTACK -> disguiseTypeId.equals("minecraft:bee");
+			case FOX_POUNCE -> disguiseTypeId.equals("minecraft:fox");
+			case WOLF_ANGRY -> disguiseTypeId.equals("minecraft:wolf");
+			case FROG_EAT -> disguiseTypeId.equals("minecraft:frog");
+			case GOAT_RAM -> disguiseTypeId.equals("minecraft:goat");
+			case RAVAGER_ATTACK -> disguiseTypeId.equals("minecraft:ravager");
+			case ENDERMAN_ANGRY -> disguiseTypeId.equals("minecraft:enderman");
 		};
 	}
 
@@ -30,6 +39,7 @@ public final class PlayerDisguiseAnimationSupport {
 			case GHAST_CHARGE -> 0;
 			case EVOKER_CAST -> 2;
 			case ILLUSIONER_CAST -> 4;
+			default -> 0;
 		};
 	}
 

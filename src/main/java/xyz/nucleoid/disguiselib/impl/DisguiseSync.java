@@ -2,6 +2,7 @@ package xyz.nucleoid.disguiselib.impl;
 
 import net.minecraft.entity.Entity;
 import net.minecraft.network.packet.s2c.play.EntityTrackerUpdateS2CPacket;
+import net.minecraft.network.packet.s2c.play.EntityStatusS2CPacket;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
@@ -65,6 +66,37 @@ public final class DisguiseSync {
 		sendAnimationMetadataRefreshToPlayers(
 				tracker.getListeners().stream().map(listener -> listener.getPlayer()).toList(),
 				entity.getId());
+	}
+
+	public static void sendDisguiseStatus(Entity entity, byte status) {
+		if (!(((EntityAccessor) entity).getWorld() instanceof ServerWorld serverWorld)) {
+			return;
+		}
+
+		var chunkLoadingManager = serverWorld.getChunkManager().chunkLoadingManager;
+		if (chunkLoadingManager == null) {
+			return;
+		}
+
+		var trackers = ((ServerChunkLoadingManagerAccessor) chunkLoadingManager).getEntityTrackers();
+		if (trackers == null) {
+			return;
+		}
+
+		var tracker = trackers.get(entity.getId());
+		if (tracker == null) {
+			return;
+		}
+
+		var packet = new EntityStatusS2CPacket(entity, status);
+		for (var listener : tracker.getListeners()) {
+			ServerPlayerEntity player = listener.getPlayer();
+			if (player.getId() == entity.getId()) {
+				continue;
+			}
+
+			player.networkHandler.sendPacket(packet);
+		}
 	}
 
 	public static void refreshDisguisedPlayers(MinecraftServer server) {

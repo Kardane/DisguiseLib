@@ -23,7 +23,9 @@ class PlayerDisguiseAnimationStateTest {
 		assertTrue(state.isActive(playerId, PlayerDisguiseAnimationType.EVOKER_CAST));
 
 		assertTrue(state.tick().isEmpty());
-		assertEquals(Set.of(playerId), state.tick());
+		assertEquals(Set.of(new PlayerDisguiseAnimationState.ExpiredAnimation(
+				playerId,
+				PlayerDisguiseAnimationType.EVOKER_CAST)), state.tick());
 		assertFalse(state.isActive(playerId, PlayerDisguiseAnimationType.EVOKER_CAST));
 	}
 
@@ -35,7 +37,7 @@ class PlayerDisguiseAnimationStateTest {
 		state.startVindicatorAttack(playerId, 2);
 		assertTrue(state.isVindicatorAttacking(playerId));
 		assertTrue(state.tick().isEmpty());
-		assertEquals(Set.of(playerId), state.tick());
+		assertEquals(Set.of(new PlayerDisguiseAnimationState.ExpiredAnimation(playerId, null)), state.tick());
 		assertFalse(state.isVindicatorAttacking(playerId));
 	}
 

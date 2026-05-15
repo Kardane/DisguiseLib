@@ -3,10 +3,19 @@ package xyz.nucleoid.disguiselib.impl.mixin;
 import com.mojang.datafixers.util.Pair;
 import net.minecraft.entity.*;
 import net.minecraft.entity.data.DataTracker;
+import net.minecraft.entity.mob.EndermanEntity;
 import net.minecraft.entity.mob.GhastEntity;
 import net.minecraft.entity.mob.MobEntity;
+import net.minecraft.entity.mob.RavagerEntity;
 import net.minecraft.entity.mob.SpellcastingIllagerEntity;
+import net.minecraft.entity.passive.ArmadilloEntity;
+import net.minecraft.entity.passive.BeeEntity;
+import net.minecraft.entity.passive.FoxEntity;
+import net.minecraft.entity.passive.FrogEntity;
+import net.minecraft.entity.passive.GoatEntity;
 import net.minecraft.entity.passive.IronGolemEntity;
+import net.minecraft.entity.passive.PolarBearEntity;
+import net.minecraft.entity.passive.WolfEntity;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.entity.player.PlayerPosition;
 import net.minecraft.item.BowItem;
@@ -16,6 +25,7 @@ import net.minecraft.nbt.NbtCompound;
 import net.minecraft.network.packet.s2c.play.*;
 import net.minecraft.registry.Registries;
 import net.minecraft.registry.RegistryKey;
+import net.minecraft.scoreboard.Team;
 import net.minecraft.server.PlayerManager;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerChunkManager;
@@ -37,6 +47,7 @@ import xyz.nucleoid.disguiselib.api.DisguiseEvents;
 import xyz.nucleoid.disguiselib.api.DisguiseUtils;
 import xyz.nucleoid.disguiselib.api.EntityDisguise;
 import xyz.nucleoid.disguiselib.impl.DisguiseLib;
+import xyz.nucleoid.disguiselib.impl.DisguiseSwimmingPolicy;
 import xyz.nucleoid.disguiselib.impl.DisguiseSync;
 import xyz.nucleoid.disguiselib.impl.DisguiseTracker;
 import xyz.nucleoid.disguiselib.impl.IronGolemDisguiseHealthPolicy;
@@ -45,14 +56,14 @@ import xyz.nucleoid.disguiselib.impl.PlayerDisguiseAnimationSupport;
 import xyz.nucleoid.disguiselib.impl.PlayerDisguiseAnimationType;
 import xyz.nucleoid.disguiselib.impl.PlayerDisguiseNameplatePolicy;
 import xyz.nucleoid.disguiselib.impl.PlayerDisguiseSneakPolicy;
+import xyz.nucleoid.disguiselib.impl.mixin.accessor.BeeEntityAccessor;
+import xyz.nucleoid.disguiselib.impl.mixin.accessor.EndermanEntityAccessor;
 import xyz.nucleoid.disguiselib.impl.mixin.accessor.EntityTrackerEntryAccessor;
 import xyz.nucleoid.disguiselib.impl.mixin.accessor.ServerChunkLoadingManagerAccessor;
 import xyz.nucleoid.disguiselib.impl.mixin.accessor.SpellcastingIllagerEntityAccessor;
 
 import java.util.*;
 import java.util.stream.Collectors;
-
-import static xyz.nucleoid.disguiselib.impl.DisguiseLib.DISGUISE_TEAM;
 
 @Mixin(Entity.class)
 public abstract class EntityMixin_Disguise implements EntityDisguise, DisguiseUtils {
@@ -224,6 +235,7 @@ public abstract class EntityMixin_Disguise implements EntityDisguise, DisguiseUt
 
 		// 트래커에서 제거
 		DisguiseTracker.onRemoveDisguise(this.disguiselib$entity);
+		this.disguiselib$removeTeamEntry();
 
 		// Setting as not-disguised
 		this.disguiselib$disguiseEntity = null;
@@ -304,9 +316,51 @@ public abstract class EntityMixin_Disguise implements EntityDisguise, DisguiseUt
 		}
 
 		player.networkHandler.sendPacket(new EntitiesDestroyS2CPacket(this.disguiselib$disguiseEntity.getId()));
-		TeamS2CPacket removeTeamPacket = TeamS2CPacket.changePlayerTeam(DISGUISE_TEAM, player.getName().getString(),
+	}
+
+	@Unique
+	private void disguiselib$removeTeamEntry() {
+		if (!(this.disguiselib$entity instanceof PlayerEntity)) {
+			return;
+		}
+		Team team = this.disguiselib$entity.getScoreboardTeam();
+		if (team == null) {
+			return;
+		}
+		if (this.world.getServer() == null) {
+			return;
+		}
+		if (!(this.world instanceof ServerWorld serverWorld)) {
+			return;
+		}
+
+		TeamS2CPacket packet = TeamS2CPacket.changePlayerTeam(
+				team,
+				this.disguiselib$entity.getUuidAsString(),
 				TeamS2CPacket.Operation.REMOVE);
-		player.networkHandler.sendPacket(removeTeamPacket);
+		var chunkLoadingManager = serverWorld.getChunkManager().chunkLoadingManager;
+		if (chunkLoadingManager == null) {
+			return;
+		}
+		var trackers = ((ServerChunkLoadingManagerAccessor) chunkLoadingManager).getEntityTrackers();
+		if (trackers == null) {
+			return;
+		}
+		var tracker = trackers.get(this.disguiselib$entity.getId());
+		if (tracker == null) {
+			return;
+		}
+
+		for (var listener : tracker.getListeners()) {
+			ServerPlayerEntity player = listener.getPlayer();
+			if (player.getId() == this.disguiselib$entity.getId()) {
+				continue;
+			}
+			if (((EntityDisguise) player).hasTrueSight()) {
+				continue;
+			}
+			player.networkHandler.sendPacket(packet);
+		}
 	}
 
 	/**
@@ -353,12 +407,16 @@ public abstract class EntityMixin_Disguise implements EntityDisguise, DisguiseUt
 				this.disguiselib$entity instanceof PlayerEntity,
 				this.isSneaking(),
 				this.getPose());
+		var swimState = DisguiseSwimmingPolicy.resolve(
+				this.isSwimming(),
+				sneakState.pose(),
+				this.disguiselib$disguiseEntity.getType() == EntityType.DROWNED);
 		this.disguiselib$disguiseEntity.setSneaking(sneakState.sneaking());
-		this.disguiselib$disguiseEntity.setSwimming(this.isSwimming());
+		this.disguiselib$disguiseEntity.setSwimming(swimState.swimming());
 		this.disguiselib$disguiseEntity.setGlowing(this.isGlowing());
 		this.disguiselib$disguiseEntity.setOnFire(this.isOnFire());
 		this.disguiselib$disguiseEntity.setSilent(this.isSilent());
-		this.disguiselib$disguiseEntity.setPose(sneakState.pose());
+		this.disguiselib$disguiseEntity.setPose(swimState.pose());
 		this.disguiselib$applyMobAnimations();
 
 		if (this.disguiselib$disguiseEntity instanceof LivingEntity disguise
@@ -386,6 +444,36 @@ public abstract class EntityMixin_Disguise implements EntityDisguise, DisguiseUt
 		if (mobEntity instanceof SpellcastingIllagerEntity spellcaster) {
 			spellcaster.getDataTracker().set(SpellcastingIllagerEntityAccessor.getSpell(), (byte) 0);
 		}
+		if (mobEntity instanceof ArmadilloEntity armadilloEntity) {
+			armadilloEntity.unroll();
+		}
+		if (mobEntity instanceof PolarBearEntity polarBearEntity) {
+			polarBearEntity.setWarning(false);
+			polarBearEntity.setAngerTime(0);
+			polarBearEntity.setAngryAt(null);
+		}
+		if (mobEntity instanceof BeeEntity beeEntity) {
+			beeEntity.setAngerTime(0);
+			beeEntity.setAngryAt(null);
+			((BeeEntityAccessor) beeEntity).callSetNearTarget(false);
+		}
+		if (mobEntity instanceof FoxEntity foxEntity) {
+			foxEntity.setCrouching(false);
+			foxEntity.setChasing(false);
+		}
+		if (mobEntity instanceof WolfEntity wolfEntity) {
+			wolfEntity.setAngerTime(0);
+			wolfEntity.setAngryAt(null);
+		}
+		if (mobEntity instanceof FrogEntity frogEntity) {
+			frogEntity.clearFrogTarget();
+		}
+		if (mobEntity instanceof EndermanEntity endermanEntity) {
+			endermanEntity.setAngerTime(0);
+			endermanEntity.setAngryAt(null);
+			endermanEntity.getDataTracker().set(EndermanEntityAccessor.getAngry(), false);
+			endermanEntity.getDataTracker().set(EndermanEntityAccessor.getProvoked(), false);
+		}
 
 		boolean skeletonBowAiming = PlayerDisguiseAnimationSupport.isSkeletonBowAiming(
 				Registries.ENTITY_TYPE.getId(this.disguiselib$disguiseEntity.getType()).toString(),
@@ -404,6 +492,65 @@ public abstract class EntityMixin_Disguise implements EntityDisguise, DisguiseUt
 			ghastEntity.setShooting(
 					PlayerDisguiseAnimationController.isActive(this.disguiselib$entity,
 							PlayerDisguiseAnimationType.GHAST_CHARGE));
+		}
+		if (mobEntity instanceof ArmadilloEntity armadilloEntity
+				&& PlayerDisguiseAnimationController.isActive(this.disguiselib$entity,
+						PlayerDisguiseAnimationType.ARMADILLO_ROLL)) {
+			armadilloEntity.setState(ArmadilloEntity.State.SCARED);
+		}
+		if (mobEntity instanceof PolarBearEntity polarBearEntity
+				&& PlayerDisguiseAnimationController.isActive(this.disguiselib$entity,
+						PlayerDisguiseAnimationType.POLAR_BEAR_ATTACK)) {
+			polarBearEntity.setWarning(true);
+			polarBearEntity.setAngerTime(100);
+			polarBearEntity.setAngryAt(player.getUuid());
+		}
+		if (mobEntity instanceof BeeEntity beeEntity
+				&& PlayerDisguiseAnimationController.isActive(this.disguiselib$entity,
+						PlayerDisguiseAnimationType.BEE_ATTACK)) {
+			beeEntity.setAngerTime(100);
+			beeEntity.setAngryAt(player.getUuid());
+			((BeeEntityAccessor) beeEntity).callSetNearTarget(true);
+		}
+		if (mobEntity instanceof FoxEntity foxEntity
+				&& PlayerDisguiseAnimationController.isActive(this.disguiselib$entity,
+						PlayerDisguiseAnimationType.FOX_POUNCE)) {
+			foxEntity.setCrouching(true);
+			foxEntity.setChasing(true);
+		}
+		if (mobEntity instanceof WolfEntity wolfEntity
+				&& PlayerDisguiseAnimationController.isActive(this.disguiselib$entity,
+						PlayerDisguiseAnimationType.WOLF_ANGRY)) {
+			wolfEntity.setAngerTime(100);
+			wolfEntity.setAngryAt(player.getUuid());
+		}
+		if (mobEntity instanceof FrogEntity frogEntity
+				&& PlayerDisguiseAnimationController.isActive(this.disguiselib$entity,
+						PlayerDisguiseAnimationType.FROG_EAT)) {
+			int targetEntityId = PlayerDisguiseAnimationController.getTargetEntityId(this.disguiselib$entity);
+			Entity target = targetEntityId != -1 ? this.world.getEntityById(targetEntityId) : null;
+			if (target != null) {
+				frogEntity.setFrogTarget(target);
+				frogEntity.setPose(EntityPose.USING_TONGUE);
+			}
+		}
+		if (mobEntity instanceof GoatEntity
+				&& PlayerDisguiseAnimationController.isActive(this.disguiselib$entity,
+						PlayerDisguiseAnimationType.GOAT_RAM)) {
+			mobEntity.setAttacking(true);
+		}
+		if (mobEntity instanceof RavagerEntity
+				&& PlayerDisguiseAnimationController.isActive(this.disguiselib$entity,
+						PlayerDisguiseAnimationType.RAVAGER_ATTACK)) {
+			mobEntity.setAttacking(true);
+		}
+		if (mobEntity instanceof EndermanEntity endermanEntity
+				&& PlayerDisguiseAnimationController.isActive(this.disguiselib$entity,
+						PlayerDisguiseAnimationType.ENDERMAN_ANGRY)) {
+			endermanEntity.setAngerTime(100);
+			endermanEntity.setAngryAt(player.getUuid());
+			endermanEntity.getDataTracker().set(EndermanEntityAccessor.getAngry(), true);
+			endermanEntity.getDataTracker().set(EndermanEntityAccessor.getProvoked(), true);
 		}
 
 		if (mobEntity instanceof SpellcastingIllagerEntity spellcaster) {

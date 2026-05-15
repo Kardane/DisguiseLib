@@ -8,6 +8,7 @@ import net.minecraft.network.listener.ClientPlayPacketListener;
 import net.minecraft.network.packet.Packet;
 
 import net.minecraft.network.packet.s2c.play.*;
+import net.minecraft.scoreboard.Team;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.*;
 import net.minecraft.server.world.ServerWorld;
@@ -26,16 +27,11 @@ import xyz.nucleoid.disguiselib.impl.packets.FakePackets;
 import java.util.*;
 import java.util.function.Consumer;
 
-import static xyz.nucleoid.disguiselib.impl.DisguiseLib.DISGUISE_TEAM;
-
 @Mixin(ServerPlayNetworkHandler.class)
 public abstract class ServerPlayNetworkHandlerMixin_Disguiser extends ServerCommonNetworkHandler
 		implements ExtendedHandler {
 	@Shadow
 	public ServerPlayerEntity player;
-
-	@Unique
-	private boolean disguiselib$sentTeamPacket;
 
 	public ServerPlayNetworkHandlerMixin_Disguiser(MinecraftServer server, ClientConnection connection,
 			ConnectedClientData clientData) {
@@ -212,6 +208,9 @@ public abstract class ServerPlayNetworkHandlerMixin_Disguiser extends ServerComm
 						remove.run();
 					}
 				}
+			} else if (packet instanceof TeamS2CPacket teamPacket
+					&& !((EntityDisguise) this.player).hasTrueSight()) {
+				this.disguiselib$trackTeamPacket(teamPacket, add);
 			}
 		} finally {
 			long duration = System.nanoTime() - startTime;
@@ -284,6 +283,7 @@ public abstract class ServerPlayNetworkHandlerMixin_Disguiser extends ServerComm
 
 			spawnPacket = FakePackets.universalSpawnPacket(entity, entry, true);
 			add.accept((Packet<ClientPlayPacketListener>) spawnPacket);
+			this.disguiselib$addTeamEntry(entity, add);
 
 			// 변장 엔티티의 DataTracker 초기 값도 함께 전송 (NBT 태그 상태 반영)
 			var dataTracker = disguiseEntity.getDataTracker();
@@ -300,17 +300,50 @@ public abstract class ServerPlayNetworkHandlerMixin_Disguiser extends ServerComm
 		}
 	}
 
-	public void disguiselib$onClientBrand() {
-		if (!this.disguiselib$sentTeamPacket) {
-			TeamS2CPacket addTeamPacket = TeamS2CPacket.updateTeam(DISGUISE_TEAM, true);
-			this.disguiselib$sentTeamPacket = true;
-			this.sendPacket(addTeamPacket);
+	@Unique
+	private void disguiselib$addTeamEntry(Entity entity, Consumer<Packet<ClientPlayPacketListener>> add) {
+		if (!(entity instanceof PlayerEntity)) {
+			return;
+		}
+		Team team = entity.getScoreboardTeam();
+		if (team == null) {
+			return;
+		}
 
-			if (((EntityDisguise) this.player).isDisguised()) {
-				TeamS2CPacket joinTeamPacket = TeamS2CPacket.changePlayerTeam(DISGUISE_TEAM,
-						this.player.getName().getString(), TeamS2CPacket.Operation.ADD);
-				this.sendPacket(joinTeamPacket);
+		add.accept(TeamS2CPacket.changePlayerTeam(
+				team,
+				entity.getUuidAsString(),
+				TeamS2CPacket.Operation.ADD));
+	}
+
+	@Unique
+	private void disguiselib$trackTeamPacket(TeamS2CPacket packet, Consumer<Packet<ClientPlayPacketListener>> add) {
+		TeamS2CPacket.Operation operation = packet.getPlayerListOperation();
+		if (operation != TeamS2CPacket.Operation.ADD && operation != TeamS2CPacket.Operation.REMOVE) {
+			return;
+		}
+
+		Team team = this.player.getServer().getScoreboard().getTeam(packet.getTeamName());
+		if (team == null) {
+			return;
+		}
+
+		Collection<String> entries = packet.getPlayerNames();
+		for (ServerPlayerEntity tracked : this.player.getServer().getPlayerManager().getPlayerList()) {
+			if (tracked.getId() == this.player.getId()) {
+				continue;
 			}
+			if (!((EntityDisguise) tracked).isDisguised()) {
+				continue;
+			}
+			if (!entries.contains(tracked.getNameForScoreboard())) {
+				continue;
+			}
+
+			add.accept(TeamS2CPacket.changePlayerTeam(
+					team,
+					tracked.getUuidAsString(),
+					operation));
 		}
 	}
 }

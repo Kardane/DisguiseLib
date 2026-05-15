@@ -19,6 +19,8 @@
 		"accessor.EntitySpawnS2CPacketAccessor",
 		"accessor.EntityTrackerEntryAccessor",
 		"accessor.EntityTrackerUpdateS2CPacketAccessor",
+		"accessor.BeeEntityAccessor",
+		"accessor.EndermanEntityAccessor",
 		"accessor.LivingEntityAccessor",
 		"accessor.PersistentProjectileEntityAccessor",
 		"accessor.PlayerEntityAccessor",

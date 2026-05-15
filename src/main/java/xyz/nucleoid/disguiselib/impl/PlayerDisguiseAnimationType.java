@@ -3,5 +3,14 @@ package xyz.nucleoid.disguiselib.impl;
 public enum PlayerDisguiseAnimationType {
 	GHAST_CHARGE,
 	EVOKER_CAST,
-	ILLUSIONER_CAST
+	ILLUSIONER_CAST,
+	ARMADILLO_ROLL,
+	POLAR_BEAR_ATTACK,
+	BEE_ATTACK,
+	FOX_POUNCE,
+	WOLF_ANGRY,
+	FROG_EAT,
+	GOAT_RAM,
+	RAVAGER_ATTACK,
+	ENDERMAN_ANGRY
 }

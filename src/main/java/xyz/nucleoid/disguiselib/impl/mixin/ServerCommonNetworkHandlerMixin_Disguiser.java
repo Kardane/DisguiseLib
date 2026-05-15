@@ -8,9 +8,7 @@ import net.minecraft.entity.data.DataTracker;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.network.PacketCallbacks;
 import net.minecraft.network.listener.ClientPlayPacketListener;
-import net.minecraft.network.packet.BrandCustomPayload;
 import net.minecraft.network.packet.Packet;
-import net.minecraft.network.packet.c2s.common.CustomPayloadC2SPacket;
 import net.minecraft.network.packet.c2s.play.PlayerMoveC2SPacket;
 import net.minecraft.network.packet.s2c.play.*;
 import net.minecraft.server.network.ServerCommonNetworkHandler;
@@ -32,8 +30,6 @@ import xyz.nucleoid.disguiselib.impl.packets.FakePackets;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
-
-import static xyz.nucleoid.disguiselib.impl.DisguiseLib.DISGUISE_TEAM;
 
 @Mixin(ServerCommonNetworkHandler.class)
 public abstract class ServerCommonNetworkHandlerMixin_Disguiser {
@@ -94,10 +90,4 @@ public abstract class ServerCommonNetworkHandlerMixin_Disguiser {
         }
     }
 
-    @Inject(method = "onCustomPayload", at = @At("TAIL"))
-    private void onClientBrand(CustomPayloadC2SPacket packet, CallbackInfo ci) {
-        if (packet.payload() instanceof BrandCustomPayload && this instanceof ExtendedHandler self) {
-            self.disguiselib$onClientBrand();
-        }
-    }
 }
