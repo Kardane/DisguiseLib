@@ -6,12 +6,26 @@ A server-side library that allows disguising entities as other ones.
 
 ## Command options
 
+- `/disguise <target> animate ghast-charge <ticks>`: 가스트 충전 연출 적용
+- `/disguise <target> animate evoker-cast <ticks>`: 소환사 주문 시전 연출 적용
+- `/disguise <target> animate illusioner-cast <ticks>`: 환술사 주문 시전 연출 적용
+- `/disguise <target> animate armadillo-roll <ticks>`: 아르마딜로 웅크리기 연출 적용
+- `/disguise <target> animate polar-bear-attack <ticks>`: 북극곰 공격 연출 적용
+- `/disguise <target> animate bee-attack <ticks>`: 꿀벌 공격 연출 적용
+- `/disguise <target> animate fox-pounce <ticks>`: 여우 도약 공격 연출 적용
+- `/disguise <target> animate wolf-angry <ticks>`: 늑대 화난 얼굴 연출 적용
+- `/disguise <target> animate frog-eat <ticks> <animationTarget>`: 개구리 잡아먹기 연출 적용
+- `/disguise <target> animate goat-ram <ticks>`: 염소 돌진 연출 적용
+- `/disguise <target> animate ravager-attack <ticks>`: 파괴수 공격 연출 적용
+- `/disguise <target> animate enderman-angry <ticks>`: 엔더맨 화난 상태 연출 적용
 - `/disguise option player-nameplate`: 플레이어 위장 이름표 옵션 현재 상태 확인
 - `/disguise option player-nameplate on`: 플레이어가 위장했을 때 현재 표시 이름을 위장 엔티티 이름표로 노출
 - `/disguise option player-nameplate off`: 기본 동작으로 복귀
 - `/disguise option player-sneak`: 플레이어 위장 웅크리기 옵션 현재 상태 확인
 - `/disguise option player-sneak on`: 플레이어가 웅크릴 때 위장 엔티티도 같이 웅크리기
 - `/disguise option player-sneak off`: 플레이어 웅크림을 위장 엔티티에 반영하지 않기
+
+`animate` 명령어는 플레이어 위장 대상에게만 적용되며, 지정한 틱이 끝나면 연출 상태가 자동으로 해제됨.
 
 이 옵션은 기본값이 `off`이고 `config/disguiselib.json`에 저장되어 서버 재시작 후에도 유지됨.
 
