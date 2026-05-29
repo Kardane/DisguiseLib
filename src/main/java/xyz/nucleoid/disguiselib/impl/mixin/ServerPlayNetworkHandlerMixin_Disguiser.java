@@ -1,7 +1,9 @@
 package xyz.nucleoid.disguiselib.impl.mixin;
 
 import net.minecraft.entity.Entity;
+import net.minecraft.entity.attribute.EntityAttributeInstance;
 import net.minecraft.entity.data.DataTracker;
+import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.network.ClientConnection;
 import net.minecraft.network.listener.ClientPlayPacketListener;
@@ -19,6 +21,8 @@ import org.spongepowered.asm.mixin.Unique;
 
 import xyz.nucleoid.disguiselib.api.DisguiseUtils;
 import xyz.nucleoid.disguiselib.api.EntityDisguise;
+import xyz.nucleoid.disguiselib.impl.DisguiseLib;
+import xyz.nucleoid.disguiselib.impl.DisguiseScalePriority;
 import xyz.nucleoid.disguiselib.impl.DisguiseTracker;
 import xyz.nucleoid.disguiselib.impl.mixin.accessor.*;
 import xyz.nucleoid.disguiselib.impl.packets.ExtendedHandler;
@@ -104,16 +108,13 @@ public abstract class ServerPlayNetworkHandlerMixin_Disguiser extends ServerComm
 					if (disguiseEntity != null) {
 						var dataTracker = disguiseEntity.getDataTracker();
 						if (dataTracker != null) {
-							// updateTrackedData에서 setSprinting 등을 호출하므로 값은 변경되었으나,
-							// dirty check에서 걸러졌을 수 있음. getChangedEntries() 결과를 가져옴.
 							var allEntries = dataTracker.getChangedEntries();
 							if (allEntries == null) {
 								allEntries = new ArrayList<>();
 							} else {
-								allEntries = new ArrayList<>(allEntries); // Ensure mutable
+								allEntries = new ArrayList<>(allEntries);
 							}
 
-							// Check if flags (Index 0) are present
 							boolean flagsPresent = false;
 							for (var entry : allEntries) {
 								if (entry.id() == 0) {
@@ -122,16 +123,14 @@ public abstract class ServerPlayNetworkHandlerMixin_Disguiser extends ServerComm
 								}
 							}
 
-							// If not present, manually add current value
 							if (!flagsPresent) {
 								try {
 									var flagsData = EntityAccessor.getFLAGS();
 									byte currentFlags = dataTracker.get(flagsData);
-									// DataTracker.SerializedEntry record: (int id, TrackedDataHandler<T> handler, T
-									// value)
-									// TrackedData has dataType() which returns the handler
-									allEntries.add(new DataTracker.SerializedEntry<>(flagsData.id(),
-											flagsData.dataType(), currentFlags));
+									allEntries.add(new DataTracker.SerializedEntry<>(
+											flagsData.id(),
+											flagsData.dataType(),
+											currentFlags));
 								} catch (Exception e) {
 									// Ignore
 								}
@@ -160,6 +159,17 @@ public abstract class ServerPlayNetworkHandlerMixin_Disguiser extends ServerComm
 				if (original != null) {
 					EntityDisguise entityDisguise = (EntityDisguise) original;
 					if (entityDisguise.isDisguised() && !((DisguiseUtils) original).disguiseAlive()) {
+						remove.run();
+						return;
+					}
+					if (DisguiseLib.getDisguiseScalePriority() == DisguiseScalePriority.DISGUISE
+							&& entityDisguise.isDisguised()
+							&& entityDisguise.getDisguiseEntity() instanceof LivingEntity disguise) {
+						Collection<EntityAttributeInstance> attributes = disguise.getAttributes().getAttributesToSend();
+						if (attributes.isEmpty()) {
+							attributes = disguise.getAttributes().getTracked();
+						}
+						add.accept(new EntityAttributesS2CPacket(entityId, attributes));
 						remove.run();
 						return;
 					}

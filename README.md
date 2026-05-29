@@ -18,14 +18,19 @@ A server-side library that allows disguising entities as other ones.
 - `/disguise <target> animate goat-ram <ticks>`: 염소 돌진 연출 적용
 - `/disguise <target> animate ravager-attack <ticks>`: 파괴수 공격 연출 적용
 - `/disguise <target> animate enderman-angry <ticks>`: 엔더맨 화난 상태 연출 적용
+- `/disguise <target> scale <value>`: 위장 엔티티에만 `minecraft:generic.scale` 기본값 적용
 - `/disguise option player-nameplate`: 플레이어 위장 이름표 옵션 현재 상태 확인
 - `/disguise option player-nameplate on`: 플레이어가 위장했을 때 현재 표시 이름을 위장 엔티티 이름표로 노출
 - `/disguise option player-nameplate off`: 기본 동작으로 복귀
 - `/disguise option player-sneak`: 플레이어 위장 웅크리기 옵션 현재 상태 확인
 - `/disguise option player-sneak on`: 플레이어가 웅크릴 때 위장 엔티티도 같이 웅크리기
 - `/disguise option player-sneak off`: 플레이어 웅크림을 위장 엔티티에 반영하지 않기
+- `/disguise option scale`: scale attribute 우선순위 현재 상태 확인
+- `/disguise option scale source`: 실제 엔티티의 scale attribute를 우선 적용
+- `/disguise option scale disguise`: 위장 엔티티의 scale attribute를 우선 적용
 
 `animate` 명령어는 플레이어 위장 대상에게만 적용되며, 지정한 틱이 끝나면 연출 상태가 자동으로 해제됨.
+`scale` 명령어는 위장 엔티티에 scale 값을 저장하며, 클라이언트 표시에는 `option scale disguise`일 때 우선 반영됨.
 
 이 옵션은 기본값이 `off`이고 `config/disguiselib.json`에 저장되어 서버 재시작 후에도 유지됨.
 
@@ -41,6 +46,7 @@ A server-side library that allows disguising entities as other ones.
 {
   "playerDisguiseNameplate": false,
   "playerSneak": false,
+  "disguiseScalePriority": "SOURCE",
   "playerDisguiseNameplateExcludedEntities": [
     "minecraft:armor_stand",
     "minecraft:block_display",
@@ -101,6 +107,8 @@ public class MyDisguises {
 
         ((EntityDisguise) entityToDisguise).isDisguised(); // Tells whether entity is disguised or not
         ((EntityDisguise) entityToDisguise).removeDisguise(); // Clears the disguise
+        ((EntityDisguise) entityToDisguise).setDisguiseScale(1.5); // Applies scale to the disguise entity only
+        ((EntityDisguise) entityToDisguise).getDisguiseScale(); // Gets the disguise entity scale
 
 
         // Not that useful (mainly for internal use)

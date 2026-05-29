@@ -28,6 +28,7 @@ class DisguiseLibConfigTest {
 
 		assertFalse(config.isPlayerDisguiseNameplate());
 		assertFalse(config.isPlayerSneak());
+		assertEquals(DisguiseScalePriority.SOURCE, config.getDisguiseScalePriority());
 		assertEquals(DEFAULT_EXCLUDED_ENTITIES, config.getPlayerDisguiseNameplateExcludedEntities());
 	}
 
@@ -36,6 +37,7 @@ class DisguiseLibConfigTest {
 		DisguiseLibConfig config = new DisguiseLibConfig();
 		config.setPlayerDisguiseNameplate(true);
 		config.setPlayerSneak(true);
+		config.setDisguiseScalePriority(DisguiseScalePriority.DISGUISE);
 		config.setPlayerDisguiseNameplateExcludedEntities(List.of("minecraft:pig"));
 
 		config.save(this.tempDir);
@@ -43,6 +45,7 @@ class DisguiseLibConfigTest {
 		DisguiseLibConfig reloaded = DisguiseLibConfig.load(this.tempDir);
 		assertTrue(reloaded.isPlayerDisguiseNameplate());
 		assertTrue(reloaded.isPlayerSneak());
+		assertEquals(DisguiseScalePriority.DISGUISE, reloaded.getDisguiseScalePriority());
 		assertEquals(List.of("minecraft:pig"), reloaded.getPlayerDisguiseNameplateExcludedEntities());
 	}
 
@@ -59,6 +62,7 @@ class DisguiseLibConfigTest {
 
 		assertTrue(config.isPlayerDisguiseNameplate());
 		assertTrue(config.isPlayerSneak());
+		assertEquals(DisguiseScalePriority.SOURCE, config.getDisguiseScalePriority());
 		assertEquals(DEFAULT_EXCLUDED_ENTITIES, config.getPlayerDisguiseNameplateExcludedEntities());
 	}
 }

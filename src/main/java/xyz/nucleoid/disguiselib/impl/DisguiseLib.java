@@ -72,4 +72,24 @@ public class DisguiseLib {
 		DisguiseSync.refreshDisguisedPlayers(server);
 		return true;
 	}
+
+	public static DisguiseScalePriority getDisguiseScalePriority() {
+		return config.getDisguiseScalePriority();
+	}
+
+	public static boolean setDisguiseScalePriority(MinecraftServer server, DisguiseScalePriority priority) {
+		if (config.getDisguiseScalePriority() == priority) {
+			return false;
+		}
+
+		config.setDisguiseScalePriority(priority);
+		try {
+			config.save(FabricLoader.getInstance().getConfigDir());
+		} catch (IOException e) {
+			getLogger("DisguiseLib").warn("위장 scale 우선순위 설정 저장 실패", e);
+		}
+
+		DisguiseSync.refreshDisguisedPlayers(server);
+		return true;
+	}
 }

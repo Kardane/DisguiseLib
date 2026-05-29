@@ -2,6 +2,8 @@ package xyz.nucleoid.disguiselib.impl.mixin;
 
 import com.mojang.datafixers.util.Pair;
 import net.minecraft.entity.*;
+import net.minecraft.entity.attribute.EntityAttributeInstance;
+import net.minecraft.entity.attribute.EntityAttributes;
 import net.minecraft.entity.data.DataTracker;
 import net.minecraft.entity.mob.EndermanEntity;
 import net.minecraft.entity.mob.GhastEntity;
@@ -268,6 +270,31 @@ public abstract class EntityMixin_Disguise implements EntityDisguise, DisguiseUt
 		return this.disguiselib$disguiseEntity;
 	}
 
+	@Override
+	public boolean setDisguiseScale(double scale) {
+		if (!(this.disguiselib$disguiseEntity instanceof LivingEntity livingDisguise)) {
+			return false;
+		}
+
+		EntityAttributeInstance scaleAttribute = livingDisguise.getAttributes().getCustomInstance(EntityAttributes.SCALE);
+		if (scaleAttribute == null) {
+			return false;
+		}
+
+		scaleAttribute.setBaseValue(scale);
+		return true;
+	}
+
+	@Override
+	public double getDisguiseScale() {
+		if (!(this.disguiselib$disguiseEntity instanceof LivingEntity livingDisguise)) {
+			return Double.NaN;
+		}
+
+		EntityAttributeInstance scaleAttribute = livingDisguise.getAttributes().getCustomInstance(EntityAttributes.SCALE);
+		return scaleAttribute != null ? scaleAttribute.getBaseValue() : Double.NaN;
+	}
+
 	/**
 	 * Whether disguise type entity is an instance of {@link LivingEntity}.
 	 *
@@ -427,7 +454,18 @@ public abstract class EntityMixin_Disguise implements EntityDisguise, DisguiseUt
 						self.getMaxHealth(),
 						disguise.getMaxHealth()));
 			}
+			EntityAttributeInstance.Packed disguiseScale = null;
+			EntityAttributeInstance scale = disguise.getAttributes().getCustomInstance(EntityAttributes.SCALE);
+			if (scale != null) {
+				disguiseScale = scale.pack();
+			}
 			disguise.getAttributes().setFrom(self.getAttributes());
+			if (disguiseScale != null) {
+				scale = disguise.getAttributes().getCustomInstance(EntityAttributes.SCALE);
+				if (scale != null) {
+					scale.unpack(disguiseScale);
+				}
+			}
 		}
 	}
 

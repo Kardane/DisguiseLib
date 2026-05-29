@@ -39,6 +39,16 @@ public abstract class ServerCommonNetworkHandlerMixin_Disguiser {
     @Unique
     private boolean disguiselib$skipCheck;
 
+    @Unique
+    public void disguiselib$sendPacketWithoutTransform(Packet<?> packet) {
+        this.disguiselib$skipCheck = true;
+        try {
+            this.sendPacket(packet);
+        } finally {
+            this.disguiselib$skipCheck = false;
+        }
+    }
+
     /**
      * Checks the packet that was sent. If the entity in the packet is disguised, the
      * entity type / id in the packet will be changed.

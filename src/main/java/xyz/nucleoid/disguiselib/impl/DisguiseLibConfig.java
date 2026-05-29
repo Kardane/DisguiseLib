@@ -23,6 +23,7 @@ public final class DisguiseLibConfig {
 
 	private boolean playerDisguiseNameplate;
 	private boolean playerSneak;
+	private DisguiseScalePriority disguiseScalePriority = DisguiseScalePriority.SOURCE;
 	private List<String> playerDisguiseNameplateExcludedEntities = new ArrayList<>(
 			DEFAULT_PLAYER_DISGUISE_NAMEPLATE_EXCLUDED_ENTITIES);
 
@@ -40,6 +41,16 @@ public final class DisguiseLibConfig {
 
 	public void setPlayerSneak(boolean playerSneak) {
 		this.playerSneak = playerSneak;
+	}
+
+	public DisguiseScalePriority getDisguiseScalePriority() {
+		return this.disguiseScalePriority;
+	}
+
+	public void setDisguiseScalePriority(DisguiseScalePriority disguiseScalePriority) {
+		this.disguiseScalePriority = disguiseScalePriority != null
+				? disguiseScalePriority
+				: DisguiseScalePriority.SOURCE;
 	}
 
 	public List<String> getPlayerDisguiseNameplateExcludedEntities() {
@@ -91,6 +102,9 @@ public final class DisguiseLibConfig {
 		if (this.playerDisguiseNameplateExcludedEntities == null) {
 			this.playerDisguiseNameplateExcludedEntities = new ArrayList<>(
 					DEFAULT_PLAYER_DISGUISE_NAMEPLATE_EXCLUDED_ENTITIES);
+		}
+		if (this.disguiseScalePriority == null) {
+			this.disguiseScalePriority = DisguiseScalePriority.SOURCE;
 		}
 	}
 }

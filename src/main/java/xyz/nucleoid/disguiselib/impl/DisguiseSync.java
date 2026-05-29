@@ -1,6 +1,7 @@
 package xyz.nucleoid.disguiselib.impl;
 
 import net.minecraft.entity.Entity;
+import net.minecraft.entity.data.DataTracker;
 import net.minecraft.network.packet.s2c.play.EntityTrackerUpdateS2CPacket;
 import net.minecraft.network.packet.s2c.play.EntityStatusS2CPacket;
 import net.minecraft.server.MinecraftServer;
@@ -10,6 +11,7 @@ import xyz.nucleoid.disguiselib.api.DisguiseUtils;
 import xyz.nucleoid.disguiselib.api.EntityDisguise;
 import xyz.nucleoid.disguiselib.impl.mixin.accessor.EntityAccessor;
 import xyz.nucleoid.disguiselib.impl.mixin.accessor.ServerChunkLoadingManagerAccessor;
+import xyz.nucleoid.disguiselib.impl.packets.ExtendedHandler;
 
 import java.util.List;
 
@@ -63,9 +65,20 @@ public final class DisguiseSync {
 			return;
 		}
 
+		Entity disguiseEntity = ((EntityDisguise) entity).getDisguiseEntity();
+		if (disguiseEntity == null) {
+			return;
+		}
+
+		List<DataTracker.SerializedEntry<?>> entries = getAnimationMetadataEntries(disguiseEntity.getDataTracker());
+		if (entries.isEmpty()) {
+			return;
+		}
+
 		sendAnimationMetadataRefreshToPlayers(
 				tracker.getListeners().stream().map(listener -> listener.getPlayer()).toList(),
-				entity.getId());
+				entity.getId(),
+				entries);
 	}
 
 	public static void sendDisguiseStatus(Entity entity, byte status) {
@@ -117,20 +130,36 @@ public final class DisguiseSync {
 		}
 	}
 
-	static EntityTrackerUpdateS2CPacket createAnimationMetadataRefreshPacket(int entityId) {
-		return new EntityTrackerUpdateS2CPacket(entityId, List.of());
+	static EntityTrackerUpdateS2CPacket createAnimationMetadataRefreshPacket(int entityId,
+			List<DataTracker.SerializedEntry<?>> entries) {
+		return new EntityTrackerUpdateS2CPacket(entityId, entries);
 	}
 
-	static int sendAnimationMetadataRefreshToPlayers(Iterable<ServerPlayerEntity> players, int entityId) {
+	static int sendAnimationMetadataRefreshToPlayers(Iterable<ServerPlayerEntity> players, int entityId,
+			List<DataTracker.SerializedEntry<?>> entries) {
 		int sent = 0;
 		for (ServerPlayerEntity player : players) {
 			if (player.getId() == entityId) {
 				continue;
 			}
+			if (((EntityDisguise) player).hasTrueSight()) {
+				continue;
+			}
 
-			player.networkHandler.sendPacket(createAnimationMetadataRefreshPacket(entityId));
+			var packet = createAnimationMetadataRefreshPacket(entityId, entries);
+			((ExtendedHandler) player.networkHandler).disguiselib$sendPacketWithoutTransform(packet);
 			sent++;
 		}
 		return sent;
+	}
+
+	static List<DataTracker.SerializedEntry<?>> getAnimationMetadataEntries(DataTracker dataTracker) {
+		var dirtyEntries = dataTracker.getDirtyEntries();
+		if (dirtyEntries != null && !dirtyEntries.isEmpty()) {
+			return dirtyEntries;
+		}
+
+		var changedEntries = dataTracker.getChangedEntries();
+		return changedEntries != null ? changedEntries : List.of();
 	}
 }

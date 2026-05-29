@@ -1,6 +1,7 @@
 package xyz.nucleoid.disguiselib.impl;
 
 import com.mojang.brigadier.Command;
+import com.mojang.brigadier.arguments.DoubleArgumentType;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.context.CommandContext;
@@ -31,6 +32,7 @@ import static net.minecraft.command.argument.EntityArgumentType.entities;
 import static net.minecraft.command.suggestion.SuggestionProviders.SUMMONABLE_ENTITIES;
 import static net.minecraft.server.command.CommandManager.argument;
 import static com.mojang.brigadier.arguments.IntegerArgumentType.integer;
+import static com.mojang.brigadier.arguments.DoubleArgumentType.doubleArg;
 import static net.minecraft.server.command.CommandManager.literal;
 
 public class DisguiseCommand {
@@ -102,6 +104,9 @@ public class DisguiseCommand {
 										.executes(DisguiseCommand::setDisguise)
 										.then(argument("nbt", NbtCompoundArgumentType.nbtCompound())
 												.executes(DisguiseCommand::setDisguise))))
+						.then(literal("scale")
+								.then(argument("value", doubleArg(0.0625, 16.0))
+										.executes(DisguiseCommand::setDisguiseScale)))
 						.then(literal("clear").executes(DisguiseCommand::clearDisguise)))
 				.then(literal("option")
 						.then(literal("player-nameplate")
@@ -111,7 +116,11 @@ public class DisguiseCommand {
 						.then(literal("player-sneak")
 								.executes(DisguiseCommand::queryPlayerSneakOption)
 								.then(literal("on").executes(ctx -> setPlayerSneakOption(ctx, true)))
-								.then(literal("off").executes(ctx -> setPlayerSneakOption(ctx, false))))));
+								.then(literal("off").executes(ctx -> setPlayerSneakOption(ctx, false))))
+						.then(literal("scale")
+								.executes(DisguiseCommand::queryScaleOption)
+								.then(literal("source").executes(ctx -> setScaleOption(ctx, DisguiseScalePriority.SOURCE)))
+								.then(literal("disguise").executes(ctx -> setScaleOption(ctx, DisguiseScalePriority.DISGUISE))))));
 	}
 
 	private static int clearDisguise(CommandContext<ServerCommandSource> ctx) throws CommandSyntaxException {
@@ -223,6 +232,73 @@ public class DisguiseCommand {
 					false);
 		}
 		return Command.SINGLE_SUCCESS;
+	}
+
+	private static int setDisguiseScale(CommandContext<ServerCommandSource> ctx) throws CommandSyntaxException {
+		Collection<? extends Entity> entities = EntityArgumentType.getEntities(ctx, "target");
+		ServerCommandSource src = ctx.getSource();
+		double scale = DoubleArgumentType.getDouble(ctx, "value");
+		AtomicInteger successCount = new AtomicInteger(0);
+		AtomicInteger failureCount = new AtomicInteger(0);
+
+		for (Entity entity : entities) {
+			EntityDisguise disguise = (EntityDisguise) entity;
+			if (!disguise.isDisguised() || !disguise.setDisguiseScale(scale)) {
+				failureCount.incrementAndGet();
+				continue;
+			}
+
+			DisguiseSync.refreshTracking(entity);
+			successCount.incrementAndGet();
+		}
+
+		int success = successCount.get();
+		if (success > 0) {
+			src.sendFeedback(
+					() -> Text.literal("위장 엔티티 scale을 " + scale + "(으)로 " + success + "명에게 적용했음")
+							.formatted(Formatting.GREEN),
+					true);
+		}
+
+		int failure = failureCount.get();
+		if (failure > 0) {
+			src.sendError(Text.literal(failure + "명은 scale을 적용할 수 있는 위장 상태가 아님")
+					.formatted(Formatting.YELLOW));
+		}
+
+		return success;
+	}
+
+	private static int queryScaleOption(CommandContext<ServerCommandSource> ctx) {
+		DisguiseScalePriority priority = DisguiseLib.getDisguiseScalePriority();
+		ctx.getSource().sendFeedback(
+				() -> Text.literal("위장 scale 우선순위: " + getScalePriorityName(priority))
+						.formatted(Formatting.GREEN),
+				false);
+		return Command.SINGLE_SUCCESS;
+	}
+
+	private static int setScaleOption(CommandContext<ServerCommandSource> ctx, DisguiseScalePriority priority) {
+		boolean changed = DisguiseLib.setDisguiseScalePriority(ctx.getSource().getServer(), priority);
+		if (changed) {
+			ctx.getSource().sendFeedback(
+					() -> Text.literal("위장 scale 우선순위를 " + getScalePriorityName(priority) + "(으)로 변경했음")
+							.formatted(Formatting.GREEN),
+					true);
+		} else {
+			ctx.getSource().sendFeedback(
+					() -> Text.literal("위장 scale 우선순위가 이미 " + getScalePriorityName(priority) + "임")
+							.formatted(Formatting.YELLOW),
+					false);
+		}
+		return Command.SINGLE_SUCCESS;
+	}
+
+	private static String getScalePriorityName(DisguiseScalePriority priority) {
+		return switch (priority) {
+			case SOURCE -> "실제 엔티티";
+			case DISGUISE -> "위장 엔티티";
+		};
 	}
 
 	private static int animateDisguise(CommandContext<ServerCommandSource> ctx, PlayerDisguiseAnimationType animationType)

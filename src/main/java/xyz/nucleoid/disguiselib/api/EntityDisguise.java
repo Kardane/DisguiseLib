@@ -49,6 +49,21 @@ public interface EntityDisguise {
 	Entity getDisguiseEntity();
 
 	/**
+	 * Sets the scale attribute on the disguise entity only.
+	 *
+	 * @param scale the disguise entity scale
+	 * @return true if the disguise entity supports scale and the value was applied
+	 */
+	boolean setDisguiseScale(double scale);
+
+	/**
+	 * Gets the scale attribute from the disguise entity.
+	 *
+	 * @return the disguise entity scale, or {@link Double#NaN} if unavailable
+	 */
+	double getDisguiseScale();
+
+	/**
 	 * Whether this entity can bypass the
 	 * "disguises" and see entities normally
 	 * Intended more for admins (to not get trolled themselves).
